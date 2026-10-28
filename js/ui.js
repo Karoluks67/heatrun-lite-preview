@@ -1,12 +1,23 @@
 /* ui: pasaulio ir objektų piešimas, HUD, kortelės, pauzė, atgaivinimas, rezultatai, garažas, pagrindinis ciklas */
 'use strict';
+/* Sklandi kamera: seka mašiną su lengvu vėlavimu, poslinkis į priekį pagal išlygintą greitį - smūgis nebeperstumia vaizdo */
+const CAM = { x: 0, y: 0, vx: 0, vy: 0, init: false, t: 0 };
+function camStep(dt) {
+  if (!CAM.init) { CAM.vx = pl.vx; CAM.vy = pl.vy; CAM.x = pl.x + pl.vx * .22; CAM.y = pl.y + pl.vy * .22; CAM.init = true; }
+  const kv = 1 - Math.exp(-3 * dt), kp = 1 - Math.exp(-9 * dt);
+  CAM.vx += (pl.vx - CAM.vx) * kv; CAM.vy += (pl.vy - CAM.vy) * kv;
+  CAM.x += (pl.x + CAM.vx * .22 - CAM.x) * kp; CAM.y += (pl.y + CAM.vy * .22 - CAM.y) * kp; CAM.t = performance.now();
+}
 let CAM_OV = null, state = 'boot', garageSel = 0, resT = 0, doubled = false, toast = null;
 const COL = { panel: '#1E2128', panel2: '#2A2E37', edge: '#3E434F', acc: '#FF8A2A', acc2: '#F2C230', txt: '#F4F1E8', dim: '#9AA0AC', red: '#FF4F4F', ad: '#3F7CFF' };
 
 /* ---------- Pasaulis ---------- */
 function drawWorld(t) {
-  const lx = CAM_OV ? CAM_OV[0] : pl.x + pl.vx * .2, ly = CAM_OV ? CAM_OV[1] : pl.y + pl.vy * .2;   // CAM_OV - miniatiūrų kadravimas (tools/thumb.js)
-  camX = Math.round(lx * PPU - WW / 2 + (shake > 0 ? rnd(-3, 3) * shake * 4 : 0)); camY = Math.round(ly * PPU - WH / 2 + (shake > 0 ? rnd(-3, 3) * shake * 4 : 0));
+  if (performance.now() - CAM.t > 250) CAM.init = false;   // įrankiai (be ciklo) - kamera iškart prie mašinos
+  if (!CAM.init) camStep(0);
+  const lx = CAM_OV ? CAM_OV[0] : CAM.x, ly = CAM_OV ? CAM_OV[1] : CAM.y;   // CAM_OV - miniatiūrų kadravimas (tools/thumb.js)
+  const sk = shake > 0 ? shake * 8 : 0;   // drebėjimas - sklandi banga, ne atsitiktiniai šuoliai kas kadrą
+  camX = Math.round(lx * PPU - WW / 2 + Math.sin(gt * 53) * sk); camY = Math.round(ly * PPU - WH / 2 + Math.cos(gt * 41) * sk);
   drawGround(); drawScorch(); drawProps(false);
   for (const h of haz) { const [x, y] = P2(h.x, h.y);
     if (h.k === 'mine') spr(h.arm > 0 || Math.floor(t * 4) % 2 ? 'haz_mine_0' : 'haz_mine_1', x, y);
@@ -296,7 +307,7 @@ function frame(now) {
   PAD = padRead(); if (PAD && PAD.start && !padStartPrev) { if (state === 'play' && G && !G.cards) pauseGame(); else if (state === 'pause') resumeGame(); } padStartPrev = !!(PAD && PAD.start);
   if (state === 'boot') { wctx.fillStyle = '#16181D'; wctx.fillRect(0, 0, WW, WH); T('HEATRUN', 240, 120, 4, COL.acc, .5); present(); return; }
   if (slowmo > 0) { slowmo -= dt; dt *= .3; }
-  shake = Math.max(0, shake - dt);
+  shake = Math.max(0, shake - dt); if (G && state !== 'garage' && state !== 'boot') camStep(dt);
   if (state === 'ready') {
     stepRun(dt); W_(() => drawWorld(gt)); drawReady(gt);
     if (anyInput && (inputDir() || stick.on || tb.gas || tb.brake || tb.left || tb.right) || PAD && PAD.active) { G.started = true; state = 'play'; Poki.start(); }

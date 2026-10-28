@@ -14,7 +14,7 @@ function newRun() {
     spr: `car_${car.id}_${cs.paint}`, sh: `car_${car.id}_sh` });
   bodyInit(pl, Object.assign({ len: 52, wid: 24, top: TOP }, car.phys || {})); pl.vx = 0; pl.vy = 0; pl.revMode = false; pl.L = 26; pl.W = 12;
   const cm = A.spr.cars.find(c => c.id === car.id); pl.rear = (cm ? cm.L / 2 : 15) / PPU + 2;   // galinis buferis (sprite'o ilgis) - iš ten nitro liepsna ir dūmai
-  const [fx, fy] = freeNear(0, 0); pl.x = fx; pl.y = fy;
+  const [fx, fy] = freeNear(0, 0); pl.x = fx; pl.y = fy; CAM.init = false;
 }
 /* ---------- Dydžiai su pasyvais ir garažu ---------- */
 const TL = k => G.tl[k] || 0;
@@ -85,7 +85,7 @@ function stepPlayer(dt) {
   engine(sp, G.started);
   return sp;
 }
-function crash(dv) { if (dv > 120) shake = Math.max(shake, Math.min(.18, dv / 1500)); sfx(dv > 200 ? 'crash' : 'hit'); }   // mažiau drebėjimo nuo sienų
+function crash(dv) { sfx(dv > 200 ? 'crash' : 'hit'); }   // be ekrano drebėjimo (vartotojas: smūgiai „karpė" vaizdą)
 
 /* ---------- Policija: kėbulai su Steam fizika, smegenys - js/police.js ---------- */
 function spawnCop(type, boss) {
@@ -144,7 +144,7 @@ function carHit(a, b, dva, dvb) {
   if (a !== pl && b === pl) { carHit(b, a, dvb, dva); return; }
   if (a === pl) {
     if (b.isCop) {
-      const rel = Math.max(dva, dvb); if (rel > 40) { sfx('crash'); if (rel > 120) shake = Math.max(shake, Math.min(.18, rel / 1400)); }
+      const rel = Math.max(dva, dvb); if (rel > 40) sfx('crash');
       const cd = (impactDmg(28, dvb) + (rel > 8 ? 4 : 0)) * (pl.boost ? 2 : 1) * dmgMul();
       if (dvb > VP.TAKEDOWN && !b.boss) hurtCop(b, b.hp + 1); else if (cd > 0) hurtCop(b, cd);   // tvirtas taranas - išjungta iš karto
       if (pl.inv <= 0 && b.dmg > 0) { const pd = Math.max(impactDmg(b.dmg, dva), rel > 8 ? b.dmg * .6 : 0); if (pd > 0) hurtPlayer(pd * (1 + heatIdx() * .15)); }
@@ -175,7 +175,7 @@ function copAbility(c, dt, dist) {
 }
 function bombAt(x, y, t, r, dmg) { haz.push({ k: 'bomb', x, y, t, max: t, r, dmg }); }
 function hurtPlayer(d) {
-  pl.hp -= Math.max(1, d * (G.t < 180 ? .6 : Math.min(1.2, .6 + (G.t - 180) / 300 * .6)) - TL('armor')); pl.inv = .7; shake = Math.max(shake, .25); sfx('hit'); G.hurtT = .3;   // iki 3 min. - 60 % žalos, iki 8 min. tolygiai iki 120 % (Poki: naujokas turi išbūti 3+ min.)
+  pl.hp -= Math.max(1, d * (G.t < 180 ? .6 : Math.min(1.2, .6 + (G.t - 180) / 300 * .6)) - TL('armor')); pl.inv = .7; sfx('hit'); G.hurtT = .3;   // iki 3 min. - 60 % žalos, iki 8 min. tolygiai iki 120 % (Poki: naujokas turi išbūti 3+ min.)
   if (pl.hp <= 0) { pl.hp = 0; die(); }
 }
 function hurtCop(c, d) {
@@ -251,7 +251,7 @@ function stepWeapons(dt) {
   proj = proj.filter(p => p.life > 0);
   /* žemėje: minos, spygliai, bosų bombos */
   for (const h of haz) {
-    if (h.k === 'bomb') { h.t -= dt; if (h.t <= 0) { h.done = 1; boom(h.x, h.y, 1.4); sfx('boom'); shake = Math.max(shake, .3); if (Math.hypot(pl.x - h.x, pl.y - h.y) < h.r + 18 && pl.inv <= 0 && !G.over) hurtPlayer(h.dmg); } continue; }
+    if (h.k === 'bomb') { h.t -= dt; if (h.t <= 0) { h.done = 1; boom(h.x, h.y, 1.4); sfx('boom'); shake = Math.max(shake, .2); if (Math.hypot(pl.x - h.x, pl.y - h.y) < h.r + 18 && pl.inv <= 0 && !G.over) hurtPlayer(h.dmg); } continue; }
     h.life -= dt; if (h.life <= 0) { h.done = 1; continue; }
     if (h.k === 'pspike') { if (!h.hit && !G.over) { const dx = pl.x - h.x, dy = pl.y - h.y, ca = Math.cos(h.a), sa = Math.sin(h.a);   // juosta statmena kelio krypčiai
         if (Math.abs(dx * ca + dy * sa) < h.len / 2 && Math.abs(-dx * sa + dy * ca) < 22) { h.hit = true; pl.pm = .45; pl.pmT = 4; pl.gm = .7; pl.gmT = 4; if (pl.inv <= 0) hurtPlayer(10); sfx('hit'); } } continue; }
@@ -262,7 +262,7 @@ function stepWeapons(dt) {
   }
   haz = haz.filter(h => !h.done);
 }
-function explode(x, y, r, dmg) { boom(x, y, r / 70); sfx('boom'); shake = Math.max(shake, .15); for (const c of cops) if (!c.dead && (c.x - x) ** 2 + (c.y - y) ** 2 < (r + c.r) ** 2) hurtCop(c, dmg); }
+function explode(x, y, r, dmg) { boom(x, y, r / 70); sfx('boom'); for (const c of cops) if (!c.dead && (c.x - x) ** 2 + (c.y - y) ** 2 < (r + c.r) ** 2) hurtCop(c, dmg); }
 
 /* ---------- Paėmimai: XP kristalai, monetos, taisymas, magnetas ---------- */
 function stepGems(dt) {
@@ -306,7 +306,7 @@ function blast(x, y, R) {
   for (let i = 0; i < (R > 100 ? 40 : 18); i++) { const a = Math.random() * TAU, v = 40 + Math.random() * R * 2.4, l = .45 + Math.random() * .35; ps.push({ k: 'fire', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: l, max: l, s: R > 100 ? 4 : 3 }); }
   scorch.push({ x, y, r: R * .55, t: 9, seed: Math.random() * 1e4 | 0 }); if (scorch.length > 40) scorch.shift();
   civBlast(x, y, R);   // sprogimas tik pastumia pastatytas mašinas (be grandinių)
-  sfx(R > 100 ? 'boom' : 'small'); if (R > 60) shake = Math.max(shake, R > 100 ? .4 : .12);
+  sfx(R > 100 ? 'boom' : 'small'); if (R > 100) shake = Math.max(shake, .25);   // drebėjimas - tik dideli sprogimai (bosai)
 }
 function boom(x, y, s) { blast(x, y, 45 * s); for (let i = 0; i < 3 * s; i++) puff(x + rnd(-20, 20), y + rnd(-20, 20), rnd(-30, 30), rnd(-50, -20), rnd(1, 1.8), 3, '#5A5E68'); }
 /* Mašinos sprogimas (Steam KillCop): sprogimas, kėbulo dalys jos spalvomis, 1-2 detalės (buferis, ratlankis, veidrodėlis), dūmai. Be žmonių ir kraujo */
@@ -320,7 +320,7 @@ function smashFx(x, y, pt, b, isPl) {   // skeveldros objekto spalvomis, lekia m
   const big = pt.r >= 14, n = big ? 12 : 7;
   for (let i = 0; i < n; i++) ps.push({ k: 'sq', x, y, vx: b.vx * rnd(.2, .6) + rnd(-140, 140), vy: b.vy * rnd(.2, .6) + rnd(-140, 140), life: rnd(.35, .6), max: .6, c: pt.dbr[i % 2], s: big && i < 5 ? 3 : 2 });
   if (big) for (let i = 0; i < 3; i++) puff(x + rnd(-8, 8), y + rnd(-8, 8), rnd(-20, 20), rnd(-30, -10), .8, 3, '#8A8070');
-  if (isPl) { sfx(big ? 'crash' : 'hit'); if (big) shake = Math.max(shake, .12); }
+  if (isPl) sfx(big ? 'crash' : 'hit');
 }
 function stepFx(dt) {
   for (const p of ps) { p.life -= dt; if (p.vx !== undefined) { p.x += p.vx * dt; p.y += p.vy * dt; const dr = p.k === 'fire' ? 1.4 : 3; p.vx *= Math.exp(-dr * dt); p.vy *= Math.exp(-dr * dt); } if (p.va) p.a += p.va * dt * Math.min(1, Math.hypot(p.vx, p.vy) / 120); }
