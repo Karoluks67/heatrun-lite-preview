@@ -306,6 +306,41 @@ function drawGarage(t) {
 }
 function note(s) { toast = { s, t: 1.4 }; sfx('warn'); }
 
+/* ---------- Įžanga (kaip Steam LogoSlam): HEATRUN logotipas tolygiai išryškėja ir pakyla, po juo įsispaudžia LITE (pirmą akimirką didesniu sveiku masteliu);
+   laukia, kol užsikraus žaidimas, tada tolygiai išnyksta. Bet koks klavišas / bakstelėjimas praleidžia ---------- */
+const INTRO = { t: 0, out: -1, IN: .6, LITE: .75, HOLD: 2.1, OUT: .45 };
+const LITE_M = { L: ['##......', '##......', '##......', '##......', '##......', '##......', '##......', '##......', '########', '########'],
+  I: ['######', '######', '..##..', '..##..', '..##..', '..##..', '..##..', '..##..', '######', '######'],
+  T: ['########', '########', '...##...', '...##...', '...##...', '...##...', '...##...', '...##...', '...##...', '...##...'],
+  E: ['########', '########', '##......', '##......', '######..', '######..', '##......', '##......', '########', '########'] };
+const LITE_C = ['#FFFFFF', '#F4F1E8', '#E6E2D6', '#D6D1C2', '#C2BCAA', '#A8A290'];   // balta -> šilta pilka (kaip logotipo juostos)
+function drawLite(cx, y, s, a) {
+  const w = 'LITE'.split('').reduce((n, c) => n + LITE_M[c][0].length + 2, -2), x0 = Math.round(cx - w * s / 2);
+  ctx.globalAlpha = a;
+  for (const pass of [0, 1, 2]) { let x = x0;   // 0 - šešėlis, 1 - kontūras, 2 - raidės
+    for (const c of 'LITE') { const m = LITE_M[c];
+      for (let r = 0; r < 10; r++) for (let q = 0; q < m[r].length; q++) { if (m[r][q] !== '#') continue; const px = x + q * s, py = y + r * s;
+        if (pass === 0) { ctx.fillStyle = 'rgba(10,9,7,.55)'; ctx.fillRect(px + s, py + 2 * s, s, s); }
+        else if (pass === 1) { ctx.fillStyle = '#0A0907'; ctx.fillRect(px - s, py - s, 3 * s, 3 * s); }
+        else { ctx.fillStyle = r === 0 ? '#FFFFFF' : r === 9 ? '#8C8674' : LITE_C[Math.min(5, r >> 1)]; ctx.fillRect(px, py, s, s); } }
+      x += (m[0].length + 2) * s; } }
+  ctx.globalAlpha = 1;
+}
+const smooth = k => { k = clamp(k, 0, 1); return k * k * (3 - 2 * k); };
+function drawIntro(dt, loaded) {   // grąžina true, kai įžanga baigta
+  INTRO.t += dt; const t = INTRO.t;
+  if (INTRO.out < 0 && loaded && (t > INTRO.HOLD || anyInput && t > .25)) INTRO.out = 0;
+  if (INTRO.out >= 0) INTRO.out += dt;
+  wctx.fillStyle = '#16181D'; wctx.fillRect(0, 0, WW, WH);
+  if (!A.logo) return false;
+  const a = smooth(t / INTRO.IN) * (1 - smooth(INTRO.out / INTRO.OUT)), k = 2, lw = A.logo.width * k, lh = A.logo.height * k;
+  const rise = Math.round((1 - smooth(t / INTRO.IN)) * 12), lx = Math.round(UIX + 240 - lw / 2), ly = Math.round(UIY + 104 - lh / 2) + rise;
+  ctx.globalAlpha = a; ctx.drawImage(A.logo, lx, ly, lw, lh); ctx.globalAlpha = 1;
+  const lt = t - INTRO.LITE; if (lt >= 0) drawLite(UIX + 240, ly + lh + 9 - (lt < .1 ? 5 : 0), lt < .1 ? 4 : 3, a * smooth(lt / .12));
+  if (!loaded && t > INTRO.HOLD) { ctx.fillStyle = '#5A606C'; for (let i = 0; i < 3; i++) if (Math.floor(t * 3) % 4 > i) ctx.fillRect(UIX + 234 + i * 5, UIY + 258, 2, 2); }   // vis dar kraunasi
+  return INTRO.out >= INTRO.OUT;
+}
+
 /* ---------- Pagrindinis ciklas ---------- */
 let last = performance.now(), gt = 0;
 const W_ = f => { ctx = wctx; f(); ctx = uctx; };   // piešimas pasaulio drobėje
@@ -314,7 +349,7 @@ function frame(now) {
   let dt = Math.min(.05, (now - last) / 1000); last = now; gt += dt;
   BTN = BTN_NEXT; BTN_NEXT = []; ctx = uctx; uctx.clearRect(0, 0, LW, LH);
   PAD = padRead(); if (PAD && PAD.start && !padStartPrev) { if (state === 'play' && G && !G.cards) pauseGame(); else if (state === 'pause') resumeGame(); } padStartPrev = !!(PAD && PAD.start);
-  if (state === 'boot') { wctx.fillStyle = '#16181D'; wctx.fillRect(0, 0, WW, WH); T('HEATRUN', 240, 120, 4, COL.acc, .5); present(); return; }
+  if (state === 'boot') { if (drawIntro(dt, bootDone)) { state = 'ready'; anyInput = false; } present(); return; }
   if (slowmo > 0) { slowmo -= dt; dt *= .3; }
   shake = Math.max(0, shake - dt); if (G && state !== 'garage' && state !== 'boot') camStep(dt);
   if (state === 'ready') {
@@ -332,8 +367,9 @@ function frame(now) {
   if (Poki.adShow) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, LW, LH); T('AD (LOCAL TEST)', 240, 130, 2, '#fff', .5); }
   present();
 }
+let bootDone = false;
 async function boot() {
-  requestAnimationFrame(frame);
+  requestAnimationFrame(frame); loadImg('assets/logo.png').then(i => { A.logo = i; INTRO.t = 0; }, () => { });   // įžangos logotipas (1,8 KB) - pirmas
   const [sj, si, pi, mj, fj] = await Promise.all([loadJson('assets/sprites.json'), loadImg('assets/sprites.png'), loadImg('assets/props.png'), loadJson('assets/map.json'), loadJson('assets/font.json'), Poki.init()]);
   A.spr = sj; A.sprImg = si; A.propImg = pi; A.map = mj; A.font = fj;
   A.propSh = shadowOf(pi, .32);
@@ -342,6 +378,6 @@ async function boot() {
   ensureChunks(0, 0, 1);
   const t0 = performance.now(); while (!(ready(pl.x, pl.y) && ready(pl.x + 400, pl.y)) && performance.now() - t0 < 4000) await new Promise(r => setTimeout(r, 30));
   const [fx, fy] = freeNear(pl.x, pl.y); pl.x = fx; pl.y = fy;
-  state = 'ready'; anyInput = false; Poki.loaded();
+  bootDone = true; Poki.loaded();   // į 'ready' perjungia įžanga (drawIntro), kai baigiasi
 }
 boot();
