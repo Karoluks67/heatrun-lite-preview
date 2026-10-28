@@ -11,11 +11,14 @@ function drawWorld(t) {
   for (const h of haz) { const [x, y] = P2(h.x, h.y);
     if (h.k === 'mine') spr(h.arm > 0 || Math.floor(t * 4) % 2 ? 'haz_mine_0' : 'haz_mine_1', x, y);
     else if (h.k === 'spike') { ctx.fillStyle = '#3A3E46'; ctx.fillRect(Math.round(x) - 2, Math.round(y) - 2, 5, 5); ctx.fillStyle = '#C8CDD6'; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); }
+    else if (h.k === 'pspike') { const ca = Math.cos(h.a), sa = Math.sin(h.a); for (let d = -h.len / 2; d <= h.len / 2; d += 15) spr(Math.floor(t * 6) % 2 ? 'haz_pspike_0' : 'haz_pspike_1', x + ca * d * PPU, y + sa * d * PPU); }
+    else if (h.k === 'ebul') sprRot('prj_ebul_red', x, y, h.a);
     else if (h.k === 'bomb') { const r = Math.round(h.r * PPU), k = 1 - h.t / h.max; ringPx(x, y, r, '#FF4F4F'); ctx.fillStyle = 'rgba(255,79,79,.28)'; circlePx(x, y, Math.round(r * k)); } }
   for (const g of gems) { const [x, y] = P2(g.x, g.y); if (x < -10 || y < -10 || x > WW + 10 || y > WH + 10) continue;
     if (g.k === 'xp') spr(g.v >= 10 ? 'xp_2' : g.v >= 3 ? 'xp_1' : 'xp_0', x, y - (Math.floor(t * 3 + g.x) % 2));
     else spr(g.k === 'coin' ? 'cash_' + (Math.floor(t * 8 + g.y) % 4) : g.k === 'heal' ? 'pick_heal' : 'pick_magnet', x, y); }
   drawCivs();
+  for (const c of cops) if (c.ab === 'emp' && c.empW && !c.dead) { const [x, y] = P2(c.x, c.y), k = 1 - clamp(c.abT, 0, 1); ringPx(x, y, Math.round(450 * PPU * k), Math.floor(t * 12) % 2 ? '#6FE7FF' : '#FFFFFF'); }   // EMP įspėjimas
   /* mašinos: šešėlis, kėbulas, blyksnis; policijos švyturėliai */
   for (const c of cops) { if (c.boss === 'heli' || c.gone) continue; const [x, y] = P2(c.x, c.y); if (x < -40 || y < -40 || x > WW + 40 || y > WH + 40) continue;
     if (c.boss === 'tank') { sprRot('tank_hull_sh', x + 2, y + 2, c.a); sprRot('tank_hull_' + (Math.floor(t * 8) % 3), x, y, c.a); sprRot('tank_turret_sh', x + 2, y + 2, Math.atan2(pl.y - c.y, pl.x - c.x)); sprRot('tank_turret', x, y, Math.atan2(pl.y - c.y, pl.x - c.x)); }
@@ -102,7 +105,8 @@ function wIcon(w) { return w; }   // ginklų piktogramų vardai sutampa su id
 
 /* ---------- HUD: prie ekrano kraštų (UI drobės koordinatės be dėžės poslinkio) ---------- */
 const NB = () => [LW - 46, LH - 46];   // nitro mygtuko centras
-const onNitroBtn = (px, py) => { if (state !== 'play' || !G || !G.started || G.cards) return false; const [x, y] = NB(); return Math.hypot(px - x, py - y) < 34; };
+const tbEnabled = () => (state === 'play' || state === 'ready') && G && !G.cards && !G.over;
+const onNitroBtn = (px, py) => { if (touchUI || state !== 'play' || !G || !G.started || G.cards) return false; const [x, y] = NB(); return Math.hypot(px - x, py - y) < 34; };
 function drawHud(t) {
   const sx = UIX, sy = UIY; UIX = 0; UIY = 0;
   /* XP juosta per visą viršų, lygis */
@@ -122,17 +126,30 @@ function drawHud(t) {
   const b = cops.find(c => c.boss && !c.dead);
   if (b) { T(b.boss === 'heli' ? L('chopper') : L('tank'), LW / 2, 38, 1, COL.red, .5); bar(LW / 2 - 90, 48, 180, 6, b.hp / b.max, COL.red); offArrow(b, t); }
   if (G.banner) { const k = G.banner.t / G.banner.max, y = LH * .3 - (1 - Math.min(1, (1 - k) * 8)) * 20; T(G.banner.s, LW / 2, y, fitSc(G.banner.s, LW - 16, 3), G.banner.col, .5); }
-  /* nitro mygtukas */
-  const [nx, ny] = NB(), full = pl.nitro, R = 28;
-  ctx.fillStyle = '#0E1014'; circlePx(nx + 1, ny + 2, R + 1); ctx.fillStyle = pl.boost ? '#5AB8FF' : '#2A2E37'; circlePx(nx, ny, R);
-  ctx.fillStyle = pl.boost ? '#8FD0FF' : '#1A4E8C'; for (let y = -R + 1; y <= R - 1; y++) { if ((R - y) / (2 * R) > full) continue; const w = Math.floor(Math.sqrt(R * R - y * y)); ctx.fillRect(nx - w, ny + y, w * 2 + 1, 1); }
-  ringPx(nx, ny, R, full > .98 && Math.floor(t * 4) % 2 ? '#FFFFFF' : '#5AB8FF');
-  icon('nitro', nx - 16, ny - 17, 1); if (!isTouch) T('SHIFT', nx, ny + R + 4, 1, COL.dim, .5);
-  /* pamoka vaizdais (pirmas runas): pilnas nitro - pirštas spaudžia mygtuką */
-  if (G.tut && !G.nitroUsed && pl.nitro > .97 && G.t > 6) { const b = Math.abs(Math.sin(t * 5)) * 6; hand(nx - 30 + b, ny - 34 + b); ringPx(nx, ny, R + 4 + Math.floor(t * 8) % 4, '#FFFFFF'); }
+  if (touchUI) drawTouch(t);
+  else {   /* nitro mygtukas (pelė / klaviatūra) */
+    const [nx, ny] = NB(), full = pl.nitro, R = 28;
+    ctx.fillStyle = '#0E1014'; circlePx(nx + 1, ny + 2, R + 1); ctx.fillStyle = pl.boost ? '#5AB8FF' : '#2A2E37'; circlePx(nx, ny, R);
+    ctx.fillStyle = pl.boost ? '#8FD0FF' : '#1A4E8C'; for (let y = -R + 1; y <= R - 1; y++) { if ((R - y) / (2 * R) > full) continue; const w = Math.floor(Math.sqrt(R * R - y * y)); ctx.fillRect(nx - w, ny + y, w * 2 + 1, 1); }
+    ringPx(nx, ny, R, full > .98 && Math.floor(t * 4) % 2 ? '#FFFFFF' : '#5AB8FF');
+    icon('nitro', nx - 16, ny - 17, 1); T('SHIFT', nx, ny + R + 4, 1, COL.dim, .5);
+    if (G.tut && !G.nitroUsed && pl.nitro > .97 && G.t > 6) { const b = Math.abs(Math.sin(t * 5)) * 6; hand(nx - 30 + b, ny - 34 + b); ringPx(nx, ny, R + 4 + Math.floor(t * 8) % 4, '#FFFFFF'); }
+  }
   /* vairasvirtė */
   if (stick.on) { ringPx(stick.ox, stick.oy, 26, 'rgba(255,255,255,.6)'); ctx.fillStyle = 'rgba(255,255,255,.55)'; circlePx(stick.ox + stick.dx * 26, stick.oy + stick.dy * 26, 9); }
   UIX = sx; UIY = sy;
+}
+/* Lietimo mygtukai: ◀ ▶ kairėje, stabdis ir dujos dešinėje, nitro virš dujų (su pildymo juosta). UI koordinatės be dėžės poslinkio */
+function drawTouch(t) {
+  const L = tbLayout(), arrow = (x, y, w, h, dir, col) => { ctx.fillStyle = col; const cx = x + w / 2, cy = y + h / 2;
+    for (let i = 0; i < 14; i++) { const hw = Math.round(i * .9); if (dir === 'l') ctx.fillRect(cx - 7 + i, cy - hw, 2, hw * 2 + 1); else if (dir === 'r') ctx.fillRect(cx + 7 - i, cy - hw, 2, hw * 2 + 1); else if (dir === 'u') ctx.fillRect(cx - hw, cy - 9 + i, hw * 2 + 1, 2); else ctx.fillRect(cx - hw, cy + 9 - i, hw * 2 + 1, 2); } };
+  const pad = (k, col, colOn) => { const [x, y, w, h] = L[k], on = tb[k]; ctx.globalAlpha = on ? .95 : .7; panel(x, y + (on ? 2 : 0), w, h, on ? colOn : col, '#0E1014'); ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(x + 1, y + (on ? 3 : 1), w - 2, 2); ctx.globalAlpha = 1; return [x, y + (on ? 2 : 0), w, h]; };
+  let r = pad('left', '#2A2E37', '#4A5060'); arrow(r[0], r[1], r[2], r[3], 'l', '#F4F1E8');
+  r = pad('right', '#2A2E37', '#4A5060'); arrow(r[0], r[1], r[2], r[3], 'r', '#F4F1E8');
+  r = pad('brake', '#5A2A2A', '#8A3A3A'); arrow(r[0], r[1], r[2], r[3], 'd', '#FFB0A0');
+  r = pad('gas', '#7A3E10', COL.acc); arrow(r[0], r[1], r[2], r[3], 'u', '#FFF3B0');
+  r = pad('nitro', pl.boost ? '#3A7AC0' : '#1A2E4A', '#5AB8FF'); ctx.fillStyle = '#5AB8FF'; ctx.fillRect(r[0] + 4, r[1] + r[3] - 7, Math.round((r[2] - 8) * pl.nitro), 4); icon('nitro', r[0] + r[2] / 2 - 16, r[1] + 6, 1);
+  if (G.tut && !G.nitroUsed && pl.nitro > .97 && G.t > 6) { const b = Math.abs(Math.sin(t * 5)) * 6; hand(L.nitro[0] - 10 + b, L.nitro[1] + 20 + b); }
 }
 function offArrow(c, t) {   // rodyklė į bosą už ekrano (pasaulio px -> UI px)
   let [x, y] = P2(c.x, c.y); if (x > 10 && y > 10 && x < WW - 10 && y < WH - 10) return; x *= KW / K; y *= KW / K;
@@ -143,8 +160,9 @@ function offArrow(c, t) {   // rodyklė į bosą už ekrano (pasaulio px -> UI p
 function drawReady(t) {
   const k = (t * .8) % 1, cx = 240, cy = 190, hx = cx - 30 + k * 60;
   ctx.fillStyle = 'rgba(255,255,255,.25)'; for (let i = 0; i < 60; i += 4) ctx.fillRect(UIX + cx - 30 + i, UIY + cy, 2, 1);
-  hand(hx, cy - 4);
-  T(isTouch ? L('drag') : L('keys'), 240, 216, 2, '#fff', .5);
+  if (touchUI) { const g = tbLayout().gas, b = Math.abs(Math.sin(t * 5)) * 6, sx = UIX, sy = UIY; UIX = UIY = 0; drawTouch(t); hand(g[0] + 30 + b, g[1] + 40 + b); UIX = sx; UIY = sy; }   // pirštas spaudžia dujas
+  else hand(hx, cy - 4);
+  T(touchUI ? L('drag') : L('keys'), 240, 216, fitSc(touchUI ? L('drag') : L('keys'), 470, 2), '#fff', .5);
   T(L('escape'), 240, 236, 1, COL.acc2, .5);
 }
 function hand(x, y) {   // 11×14 pirštas
@@ -272,12 +290,13 @@ function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(.05, (now - last) / 1000); last = now; gt += dt;
   BTN = BTN_NEXT; BTN_NEXT = []; ctx = uctx; uctx.clearRect(0, 0, LW, LH);
+  PAD = padRead(); if (PAD && PAD.start && !padStartPrev) { if (state === 'play' && G && !G.cards) pauseGame(); else if (state === 'pause') resumeGame(); } padStartPrev = !!(PAD && PAD.start);
   if (state === 'boot') { wctx.fillStyle = '#16181D'; wctx.fillRect(0, 0, WW, WH); T('HEATRUN', 240, 120, 4, COL.acc, .5); present(); return; }
   if (slowmo > 0) { slowmo -= dt; dt *= .3; }
   shake = Math.max(0, shake - dt);
   if (state === 'ready') {
     stepRun(dt); W_(() => drawWorld(gt)); drawReady(gt);
-    if (anyInput && (inputDir() || stick.on)) { G.started = true; state = 'play'; Poki.start(); }
+    if (anyInput && (inputDir() || stick.on || tb.gas || tb.brake || tb.left || tb.right) || PAD && PAD.active) { G.started = true; state = 'play'; Poki.start(); }
   } else if (state === 'play') {
     if (!G.cards) stepRun(dt);
     W_(() => drawWorld(gt)); if (!G.over) drawHud(gt);

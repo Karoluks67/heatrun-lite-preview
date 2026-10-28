@@ -142,15 +142,18 @@ function drawProps(top) {
     }
   }
 }
-/* Žemi objektai (ne medžiai) - nuvažiuojami: dingsta su dulkėmis */
-const SMASH = new Set(['bush', 'bench', 'bin', 'hydrant', 'mail', 'news', 'planter', 'stop', 'cafe', 'phone', 'bollard', 'clock', 'litter', 'trash', 'tires', 'lamp', 'cone', 'barrel', 'sign']);
-function smashProps(x, y, r, sp) {
+/* Objektų laužymas (Steam PROP_T): mašina prasimuša pro medį, žibintą, suolą... - objektas lūžta, lekia skeveldros, mašina sulėtėja */
+function smashProps(b, isPl) {
+  const sp = Math.hypot(b.vx, b.vy); if (sp < 60) return;
+  const x = b.x + Math.cos(b.a) * (b.len || 52) * .35, y = b.y + Math.sin(b.a) * (b.len || 52) * .35;
   const cx = Math.floor(x * PPU / CH), cy = Math.floor(y * PPU / CH), P = A.map.props;
   for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++) {
     const L = A.map.obj[i + '_' + j]; if (!L) continue;
     for (const o of L) {
-      if (broken.has(o)) continue; const p = P[o[0]]; if (!SMASH.has(p[5])) continue;
-      if (Math.abs(o[1] - x) < r && Math.abs(o[2] - y) < r) { broken.add(o); smashFx(o[1], o[2], sp); }
+      if (broken.has(o)) continue; const nm = P[o[0]][5], pt = PROP_T[PROP_ALIAS[nm] || nm]; if (!pt) continue;
+      const R = pt.r + (b.wid || 24) * .6; if ((o[1] - x) ** 2 + (o[2] - y) ** 2 > R * R) continue;
+      broken.add(o); smashFx(o[1], o[2], pt, b, isPl);
+      b.vx *= pt.slow; b.vy *= pt.slow;
     }
   }
 }

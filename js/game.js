@@ -39,7 +39,11 @@ function playerCtl() {
   if (!G.started) { c.brk = 1; return c; }
   const ca = Math.cos(pl.a), sa = Math.sin(pl.a), u = pl.vx * ca + pl.vy * sa;
   const kU = keys.KeyW || keys.ArrowUp, kD = keys.KeyS || keys.ArrowDown, kL = keys.KeyA || keys.ArrowLeft, kR = keys.KeyD || keys.ArrowRight;
-  if (kU || kD || kL || kR || keys.Space) {
+  if (tb.gas || tb.brake || tb.left || tb.right) {   // lietimo mygtukai: stabdis su vairu greitai - driftas, stovint - atbulinė
+    c.steer = (tb.right ? 1 : 0) - (tb.left ? 1 : 0); c.thr = tb.gas ? 1 : 0; c.rev = tb.brake ? 1 : 0;
+    if (tb.gas && tb.brake) { c.burn = true; c.thr = 0; c.rev = 0; } else if (tb.brake && c.steer && u > 250) { c.hb = true; c.rev = 0; }
+  } else if (PAD && PAD.active) { c.steer = PAD.x; c.thr = PAD.rt; c.rev = PAD.lt; c.hb = PAD.hb; if (PAD.rt > .5 && PAD.lt > .5) { c.burn = true; c.thr = 0; c.rev = 0; } }
+  else if (kU || kD || kL || kR || keys.Space) {
     c.steer = (kR ? 1 : 0) - (kL ? 1 : 0); c.thr = kU ? 1 : 0; c.rev = kD ? 1 : 0; c.hb = !!keys.Space;
     if (kU && kD) { c.burn = true; c.thr = 0; c.rev = 0; }   // burnout - saulutės vietoje
   } else if (stick.on && Math.hypot(stick.dx, stick.dy) > .25) {
@@ -53,7 +57,7 @@ function playerCtl() {
       else if (Math.abs(df) > 1.25 && u > 330) c.hb = true;   // staigus posūkis greitai - driftas
     }
   } else if (stick.on) c.brk = .6;   // pirštas ekrane, bet vietoje - stabdo
-  c.nitro = (keys.ShiftLeft || keys.ShiftRight || nitroBtn.on) && pl.nitro > .02 && u > 40 && !pl.revMode;
+  c.nitro = (keys.ShiftLeft || keys.ShiftRight || keys.KeyN || nitroBtn.on || tb.nitro || PAD && PAD.nitro) && pl.nitro > .02 && u > 40 && !pl.revMode && !(pl.empT > 0);
   return c;
 }
 function stepPlayer(dt) {
@@ -68,7 +72,8 @@ function stepPlayer(dt) {
   const nm = 1 + TL('nitro') * .15 + G.up.nit * .2;
   if (pl.boost) pl.nitro = Math.max(0, pl.nitro - .34 * dt);
   else pl.nitro = Math.min(1, pl.nitro + dt * (.03 + (slide ? .16 : 0)) * nm);   // driftas pildo nitro (Steam)
-  if (sp > 120) smashProps(pl.x + fx * pl.L * .7, pl.y + fy * pl.L * .7, 26, sp);
+  smashProps(pl, true);
+  if (pl.empT > 0) pl.empT -= dt;
   /* padangų dūmai slystant, kibirkštys nuo sienų, nitro liepsna */
   const bx = pl.x - fx * pl.L * .8, by = pl.y - fy * pl.L * .8;
   if (slide && Math.random() < .8) for (const s of [1, -1]) puff(bx + rx * pl.W * s, by + ry * pl.W * s, rnd(-30, 30), rnd(-30, 30), .7, 3, '#E8EAEE');
@@ -90,7 +95,7 @@ function spawnCop(type, boss) {
     if (q.d <= 0) { h = q.ang; if (Math.cos(h) * (pl.x - x) + Math.sin(h) * (pl.y - y) < 0) h += Math.PI; }
     const hs = heatHp(); let c;
     if (boss) c = { boss: boss.k, x, y, a: h, hp: boss.hp * (1 + G.t / 900), r: boss.k === 'heli' ? 40 : 46, dmg: boss.k === 'heli' ? 0 : 35, xp: boss.xp, coin: boss.coin, fireT: 3, spr: '' };
-    else c = { type, x, y, a: h, hp: T.hp * hs, r: T.r, dmg: T.dmg, xp: T.xp, spr: T.spr };
+    else c = { type, x, y, a: h, hp: T.hp * hs, r: T.r, dmg: T.dmg, xp: T.xp, spr: T.spr, ab: T.ab, abT: rnd(2, 5) };
     const top = boss ? (boss.k === 'heli' ? 380 : 210) : T.spd * (1 + heatIdx() * .05) * (G.t < 120 ? .9 : 1);
     if (!copAir(c)) { bodyInit(c, Object.assign({}, VCOP[boss ? 'tank' : type] || VCOP.patrol, { top })); if (solidCar(x, y, h, c.len / 2, c.wid / 2)) continue; c.vx = Math.cos(h) * top * .6; c.vy = Math.sin(h) * top * .6; }
     c.top = top; c.isCop = true; c.max = c.hp; c.flash = 0; c.dead = false; c.sirT = Math.random();
@@ -100,12 +105,13 @@ function spawnCop(type, boss) {
 }
 function spawner(dt) {
   const t = G.t, alive = cops.reduce((n, c) => n + (c.dead || c.boss ? 0 : 1), 0);
-  const want = Math.min(55, t < 25 ? 3 : t < 240 ? 4 + Math.floor(t / 15) : 20 + Math.floor((t - 240) / 6));
+  const want = Math.min(60, t < 25 ? 3 : t < 240 ? 4 + Math.floor(t / 13) : 22 + Math.floor((t - 240) / 6));   // daugiau policijos (eismo nebėra)
   G.spawnT -= dt; if (G.spawnT > 0 || alive >= want) return;
   G.spawnT = Math.max(.3, 1.3 - t / 320);
-  const pool = []; for (const k in COP) if (t >= COP[k].at) for (let i = 0; i < ({ patrol: 5, inter: 3, suv: 2, van: 1, rhino: 1 })[k]; i++) pool.push(k);
+  const pool = []; for (const k in COP) if (t >= COP[k].at) for (let i = 0; i < (COP_W[k] || 1); i++) pool.push(k);
   const n = Math.min(want - alive, t < 60 ? 1 : 1 + Math.floor(Math.random() * Math.min(4, 1 + t / 90)));
-  for (let i = 0; i < n; i++) spawnCop(pick(pool));
+  for (let i = 0; i < n; i++) { const ty = pick(pool), lead = spawnCop(ty);   // motociklai - grupėmis (Steam UD.GROUP)
+    if (lead && COP[ty].group) for (let g = 1; g < COP[ty].group; g++) { const m = spawnCop(ty); if (m) { m.x = lead.x - Math.cos(lead.a) * 50 * g + rnd(-20, 20); m.y = lead.y - Math.sin(lead.a) * 50 * g + rnd(-20, 20); m.a = lead.a; } } }
   /* bosai: įspėjimas 5 s prieš */
   const B = BOSS[G.bossI % BOSS.length], at = B.at + Math.floor(G.bossI / BOSS.length) * 540;
   if (t >= at - 5 && !G.bossWarn) { G.bossWarn = 1; banner(B.k === 'heli' ? L('chopperIn') : L('tankIn'), '#FF4F4F', 3); sfx('warn'); }
@@ -123,6 +129,8 @@ function stepCops(dt) {
     bodyMove(c, ctl, dt, SURF_V[Math.min(9, cl)] || 1, SURF_G[Math.min(9, cl)] || 1);
     if (dist > 2400 && !c.boss) { c.dead = true; c.deadT = 0; c.gone = true; }   // per toli - dingsta (gims iš naujo arčiau)
     if (c.boss === 'tank') { c.fireT -= dt; if (c.fireT <= 0 && dist < 700) { c.fireT = 3.2; bombAt(pl.x + pl.vx * .9, pl.y + pl.vy * .9, 1.3, 95, 30); } }
+    if (c.ab) copAbility(c, dt, dist);
+    if ((Math.floor(G.t * 60) + (c.sirT * 10 | 0)) % 2 === 0) smashProps(c, false);   // policija irgi laužo objektus
   }
   /* susidūrimai: žaidėjas, policija ir civilinės mašinos - Steam kapsulių impulsai pagal masę */
   const list = [pl]; for (const c of cops) if (!c.dead && !copAir(c)) list.push(c); for (const v of civs) if (!v.gone) list.push(v);
@@ -149,6 +157,19 @@ function stepHeli(c, dt, dist) {   // sraigtasparnis: skrenda virš namų, sukas
   const want = Math.atan2(oy - c.y, ox - c.x); c.a += clamp(angDiff(c.a, want), -2 * dt, 2 * dt);
   const v = Math.min(c.top, Math.hypot(ox - c.x, oy - c.y) * 2); c.x += Math.cos(want) * v * dt; c.y += Math.sin(want) * v * dt;
   c.fireT -= dt; if (c.fireT <= 0 && dist < 650) { c.fireT = 2.4; bombAt(pl.x + pl.vx * .8 + rnd(-40, 40), pl.y + pl.vy * .8 + rnd(-40, 40), 1.2, 85, 22); }
+}
+/* Dalinių gebėjimai (Steam UD): spyglių juosta priešais žaidėją, EMP banga (įspėjimas žiedu), šūviai */
+function copAbility(c, dt, dist) {
+  c.abT -= dt; if (c.abT > 0) return;
+  if (c.ab === 'spike') { if (dist > 600) { c.abT = 1; return; } c.abT = 6;
+    const sp = Math.hypot(pl.vx, pl.vy), fx = sp > 40 ? pl.vx / sp : Math.cos(pl.a), fy = sp > 40 ? pl.vy / sp : Math.sin(pl.a), ax = pl.x + fx * 350, ay = pl.y + fy * 350;
+    if (!solidAt(ax, ay)) haz.push({ k: 'pspike', x: ax, y: ay, a: Math.atan2(fy, fx) + Math.PI / 2, life: 12, len: 90, hit: false }); }
+  else if (c.ab === 'emp') { if (!c.empW) { if (dist > 450) { c.abT = .5; return; } c.empW = 1; c.abT = 1; return; }   // 1 s įspėjimas, tada banga
+    c.empW = 0; c.abT = 8; ps.push({ k: 'ring', x: c.x, y: c.y, life: .4, max: .4, r: 450 }); sfx('zap');
+    if (Math.hypot(pl.x - c.x, pl.y - c.y) < 450 && !G.over) { pl.pm = .4; pl.pmT = 2.5; pl.empT = 2.5; const a = Math.atan2(pl.y - c.y, pl.x - c.x); pl.vx += Math.cos(a) * 150; pl.vy += Math.sin(a) * 150; if (pl.inv <= 0) hurtPlayer(5); } }
+  else if (c.ab === 'gun') { if (dist > 650 || !los(c.x, c.y, pl.x, pl.y)) { c.abT = .5; return; } c.abT = 2.2;
+    const tx = pl.x + pl.vx * .5, ty = pl.y + pl.vy * .5, a = Math.atan2(ty - c.y, tx - c.x);
+    haz.push({ k: 'ebul', x: c.x + Math.cos(a) * 30, y: c.y + Math.sin(a) * 30, vx: Math.cos(a) * 560, vy: Math.sin(a) * 560, a, life: 1.4, dmg: c.dmg }); sfx('shot'); }
 }
 function bombAt(x, y, t, r, dmg) { haz.push({ k: 'bomb', x, y, t, max: t, r, dmg }); }
 function hurtPlayer(d) {
@@ -230,6 +251,10 @@ function stepWeapons(dt) {
   for (const h of haz) {
     if (h.k === 'bomb') { h.t -= dt; if (h.t <= 0) { h.done = 1; boom(h.x, h.y, 1.4); sfx('boom'); shake = Math.max(shake, .3); if (Math.hypot(pl.x - h.x, pl.y - h.y) < h.r + 18 && pl.inv <= 0 && !G.over) hurtPlayer(h.dmg); } continue; }
     h.life -= dt; if (h.life <= 0) { h.done = 1; continue; }
+    if (h.k === 'pspike') { if (!h.hit && !G.over) { const dx = pl.x - h.x, dy = pl.y - h.y, ca = Math.cos(h.a), sa = Math.sin(h.a);   // juosta statmena kelio krypčiai
+        if (Math.abs(dx * ca + dy * sa) < h.len / 2 && Math.abs(-dx * sa + dy * ca) < 22) { h.hit = true; pl.pm = .45; pl.pmT = 4; pl.gm = .7; pl.gmT = 4; if (pl.inv <= 0) hurtPlayer(10); sfx('hit'); } } continue; }
+    if (h.k === 'ebul') { h.x += h.vx * dt; h.y += h.vy * dt; if (solidAt(h.x, h.y)) { h.done = 1; continue; }
+      if (!G.over && (pl.x - h.x) ** 2 + (pl.y - h.y) ** 2 < 26 * 26) { h.done = 1; if (pl.inv <= 0) hurtPlayer(h.dmg); for (let i = 0; i < 4; i++) ps.push({ k: 'sq', x: h.x, y: h.y, vx: rnd(-120, 120), vy: rnd(-120, 120), life: .2, max: .2, c: '#FF6A4A', s: 2 }); } continue; }
     if (h.k === 'mine') { h.arm -= dt; if (h.arm > 0) continue; if (nearestCop(h.x, h.y, 50)) { h.done = 1; explode(h.x, h.y, h.r, h.dmg); } }
     else if (h.k === 'spike') for (const c of cops) { if (c.dead || c.boss === 'heli' || h.hit.has(c)) continue; if ((c.x - h.x) ** 2 + (c.y - h.y) ** 2 < (c.r + h.r) ** 2) { h.hit.add(c); if (c.pm) { c.pm = .45; c.pmT = 1.5; c.gm = .7; c.gmT = 1.5; } hurtCop(c, h.dmg); } }
   }
@@ -289,7 +314,12 @@ function carBlast(x, y, big, cols, vx, vy) {
   for (let i = 0; i < (big ? 4 : 1 + (Math.random() < .5)); i++) { const a = Math.random() * TAU, v = rnd(140, 300); ps.push({ k: 'deb', x, y, vx: Math.cos(a) * v + vx, vy: Math.sin(a) * v + vy, a: Math.random() * TAU, va: rnd(-12, 12), life: 2.5, max: 2.5, n: pick(['deb_bumper', 'deb_hub', 'deb_mirror']) }); }
   for (let i = 0; i < 4; i++) puff(x + rnd(-10, 10), y + rnd(-10, 10), rnd(-15, 15), rnd(-35, -20), 1.4 + Math.random(), 3, '#5A5E68');
 }
-function smashFx(x, y) { for (let i = 0; i < 6; i++) ps.push({ k: 'sq', x, y, vx: rnd(-160, 160), vy: rnd(-160, 160), life: .4, max: .4, c: pick(['#8A6A48', '#5C8F3A', '#C8CCD4', '#3A3E46']), s: 2 }); sfx('hit'); }
+function smashFx(x, y, pt, b, isPl) {   // skeveldros objekto spalvomis, lekia mašinos kryptimi
+  const big = pt.r >= 14, n = big ? 12 : 7;
+  for (let i = 0; i < n; i++) ps.push({ k: 'sq', x, y, vx: b.vx * rnd(.2, .6) + rnd(-140, 140), vy: b.vy * rnd(.2, .6) + rnd(-140, 140), life: rnd(.35, .6), max: .6, c: pt.dbr[i % 2], s: big && i < 5 ? 3 : 2 });
+  if (big) for (let i = 0; i < 3; i++) puff(x + rnd(-8, 8), y + rnd(-8, 8), rnd(-20, 20), rnd(-30, -10), .8, 3, '#8A8070');
+  if (isPl) { sfx(big ? 'crash' : 'hit'); if (big) shake = Math.max(shake, .12); }
+}
 function stepFx(dt) {
   for (const p of ps) { p.life -= dt; if (p.vx !== undefined) { p.x += p.vx * dt; p.y += p.vy * dt; const dr = p.k === 'fire' ? 1.4 : 3; p.vx *= Math.exp(-dr * dt); p.vy *= Math.exp(-dr * dt); } if (p.va) p.a += p.va * dt * Math.min(1, Math.hypot(p.vx, p.vy) / 120); }
   for (const q of scorch) q.t -= dt; if (scorch.length && scorch[0].t <= 0) scorch.shift();

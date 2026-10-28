@@ -12,7 +12,8 @@ const VP = {
 };
 /* Policijos kėbulai (VCOP) ir paviršiaus sukibimas (World.SURF .G) */
 const VCOP = { patrol: { m: 1, len: 52, wid: 24 }, inter: { m: .95, len: 52, wid: 24 }, suv: { m: 1.6, len: 56, wid: 28 }, van: { m: 2.2, len: 62, wid: 30 },
-  rhino: { m: 2.8, len: 58, wid: 30 }, tank: { m: 8, len: 90, wid: 46 } };
+  rhino: { m: 2.8, len: 58, wid: 30 }, tank: { m: 8, len: 90, wid: 46 }, moto: { m: .5, len: 30, wid: 12 }, fed: { m: 1.5, len: 56, wid: 28 },
+  emp: { m: 1.1, len: 52, wid: 24 }, spiker: { m: 1, len: 52, wid: 24 }, gunner: { m: 1.05, len: 52, wid: 24 } };
 const SURF_G = [1, .8, .75, .2, 1, 1, .9, 1, 1, .55];
 
 function bodyInit(o, s) {

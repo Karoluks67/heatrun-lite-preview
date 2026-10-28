@@ -94,6 +94,22 @@ function drawStr(atl, s, x, y, sc) {
 /* ---------- Įvestis: plaukiojanti vairasvirtė (pirštas bet kur), nitro mygtukas, klaviatūra, UI mygtukai ---------- */
 const keys = {}, stick = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0 };
 const nitroBtn = { on: false, id: null };
+/* Lietimo valdymas (Poki tipo): kairėje ◀ ▶, dešinėje dujos, stabdis ir nitro; keli pirštai vienu metu, pirštą galima perslinkti */
+const tb = { left: false, right: false, gas: false, brake: false, nitro: false }, tbPtr = new Map();
+let touchUI = matchMedia('(pointer: coarse)').matches;
+function tbLayout() { return { left: [10, LH - 82, 70, 72], right: [88, LH - 82, 70, 72], brake: [LW - 162, LH - 82, 70, 72], gas: [LW - 84, LH - 104, 74, 94], nitro: [LW - 84, LH - 172, 74, 60] }; }
+function tbHit(px, py) { if (!touchUI || !tbEnabled()) return null; const L = tbLayout(); for (const k in L) { const [x, y, w, h] = L[k]; if (px >= x - 6 && py >= y - 6 && px < x + w + 6 && py < y + h + 6) return k; } return null; }
+function tbSync() { for (const k in tb) tb[k] = false; for (const k of tbPtr.values()) if (k) tb[k] = true; }
+/* Pultelis (Steam Main.Input): RT dujos, LT stabdis/atbulinė, kairė lazdelė arba kryžmė - vairas, A/LB rankinis, RB/X nitro, Start pauzė */
+let PAD = null, padStartPrev = false;
+function padRead() {
+  const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const g of gps) { if (!g || !g.connected) continue;
+    const b = i => g.buttons[i] ? (g.buttons[i].value || (g.buttons[i].pressed ? 1 : 0)) : 0; let x = g.axes[0] || 0; if (Math.abs(x) < .15) x = 0; if (!x) x = b(15) - b(14);
+    const p = { x, rt: b(7), lt: b(6), hb: b(0) > .5 || b(4) > .5, nitro: b(5) > .5 || b(2) > .5, start: b(9) > .5 };
+    p.active = !!(p.x || p.rt > .05 || p.lt > .05 || p.hb || p.nitro); return p; }
+  return null;
+}
 let BTN = [], BTN_NEXT = [], lastInput = 0, anyInput = false;
 const toLo = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * LW, (e.clientY - r.top) / r.height * LH]; };
 /* Mygtukai registruojami kiekviename kadre piešiant (UI koordinatės) */
@@ -104,19 +120,21 @@ cv.addEventListener('pointerdown', e => {
   e.preventDefault(); audioInit(); anyInput = true; lastInput = performance.now();
   const [px, py] = toLo(e), b = hitBtn(px, py);
   if (b) { b.fn(); sfx('click'); return; }
+  if (e.pointerType === 'touch') { touchUI = true; const k = tbHit(px, py); if (k) { tbPtr.set(e.pointerId, k); tbSync(); try { cv.setPointerCapture(e.pointerId); } catch (_) { } return; } }
   if (onNitroBtn(px, py)) { nitroBtn.on = true; nitroBtn.id = e.pointerId; return; }
   if (!stick.on) { stick.on = true; stick.id = e.pointerId; stick.ox = px; stick.oy = py; stick.x = px; stick.y = py; stick.dx = 0; stick.dy = 0; }
   try { cv.setPointerCapture(e.pointerId); } catch (_) { }
 });
 cv.addEventListener('pointermove', e => {
   const [px, py] = toLo(e); hover = hitBtn(px, py);
+  if (tbPtr.has(e.pointerId)) { tbPtr.set(e.pointerId, tbHit(px, py)); tbSync(); return; }   // pirštas perslenka ant kito mygtuko
   if (stick.on && e.pointerId === stick.id) {
     let dx = px - stick.ox, dy = py - stick.oy; const d = Math.hypot(dx, dy), R = 26;
     if (d > R) { stick.ox = px - dx / d * R; stick.oy = py - dy / d * R; dx = px - stick.ox; dy = py - stick.oy; }   // vairasvirtė seka pirštą
     stick.x = px; stick.y = py; stick.dx = dx / R; stick.dy = dy / R; lastInput = performance.now();
   }
 });
-function ptrUp(e) { if (e.pointerId === stick.id) { stick.on = false; stick.id = null; stick.dx = stick.dy = 0; } if (e.pointerId === nitroBtn.id) { nitroBtn.on = false; nitroBtn.id = null; } }
+function ptrUp(e) { if (tbPtr.delete(e.pointerId)) tbSync(); if (e.pointerId === stick.id) { stick.on = false; stick.id = null; stick.dx = stick.dy = 0; } if (e.pointerId === nitroBtn.id) { nitroBtn.on = false; nitroBtn.id = null; } }
 cv.addEventListener('pointerup', ptrUp); cv.addEventListener('pointercancel', ptrUp);
 cv.addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('keydown', e => {
@@ -125,7 +143,7 @@ addEventListener('keydown', e => {
   onKey(e.code);
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-addEventListener('blur', () => { for (const k in keys) keys[k] = false; stick.on = false; nitroBtn.on = false; onBlur(); });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; stick.on = false; nitroBtn.on = false; tbPtr.clear(); tbSync(); onBlur(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) onBlur(); });
 function keyDir() {
   const dx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), dy = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);

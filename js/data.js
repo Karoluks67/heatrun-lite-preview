@@ -52,7 +52,27 @@ const COP = {
   suv: { spr: 'cop_suv', hp: 70, dmg: 11, xp: 3, r: 26, spd: 440, at: 140 },
   van: { spr: 'cop_van', hp: 170, dmg: 16, xp: 4, r: 28, spd: 390, at: 230 },
   rhino: { spr: 'cop_rhino', hp: 120, dmg: 20, xp: 2, r: 28, spd: 480, at: 330 },
+  /* Steam versijos daliniai su gebėjimais (COP, UD): motociklai grupėmis, spyglių juosta, EMP banga, šauliai, federalai */
+  moto: { spr: 'cop_moto', hp: 10, dmg: 4, xp: 1, r: 14, spd: 600, at: 45, group: 3 },
+  spiker: { spr: 'cop_spiker', hp: 70, dmg: 8, xp: 2, r: 24, spd: 500, at: 200, ab: 'spike' },
+  emp: { spr: 'cop_emp', hp: 60, dmg: 8, xp: 2, r: 24, spd: 460, at: 260, ab: 'emp' },
+  fed: { spr: 'cop_fed', hp: 150, dmg: 18, xp: 6, r: 26, spd: 540, at: 300 },
+  gunner: { spr: 'cop_gunner', hp: 80, dmg: 8, xp: 3, r: 24, spd: 470, at: 380, ab: 'gun' },
 };
+const COP_W = { patrol: 5, inter: 3, suv: 2, van: 1, rhino: 1, moto: 2, spiker: 1, emp: 1, fed: 1, gunner: 1 };   // dažnis
+/* Steam PROP_T: objektų laužymas - spindulys (vnt.), sulėtėjimas pravažiuojant, skeveldrų spalvos. Medžiai ir žibintai - irgi lūžta */
+const PROP_T = {
+  lamp: { r: 12, slow: .78, dbr: ['#3A3E46', '#C9C2A0'] }, tree: { r: 14, slow: .55, dbr: ['#3E7431', '#6A4A2C'] }, ftree: { r: 9, slow: .88, dbr: ['#3E7431', '#6A4A2C'] },
+  bench: { r: 10, slow: .9, dbr: ['#8C6A44', '#3A3E46'] }, cafe: { r: 9, slow: .9, dbr: ['#C0392B', '#ECE8DE'] }, news: { r: 9, slow: .93, dbr: ['#2F6FD6', '#E8E6E0'] },
+  planter: { r: 10, slow: .92, dbr: ['#9A9086', '#3E7431'] }, stop: { r: 16, slow: .85, dbr: ['#8A949E', '#A9C6DC'] }, tlight: { r: 9, slow: .8, dbr: ['#2A2D34', '#F2C230'] },
+  kiosk: { r: 17, slow: .82, dbr: ['#D93B30', '#F4F2EC'] }, fountain: { r: 16, slow: .8, dbr: ['#B8B0A2', '#3C9ED0'] }, hydrant: { r: 11, slow: .9, dbr: ['#D93B30', '#8E1E1E'] },
+  bin: { r: 13, slow: .93, dbr: ['#3E6B48', '#1A1C1E'] }, mail: { r: 11, slow: .93, dbr: ['#2F6FD6', '#1E3A6E'] }, cone: { r: 9, slow: .97, dbr: ['#F07C2A', '#F4F2EC'] },
+  barrel: { r: 13, slow: .92, dbr: ['#C0392B', '#E0B030'] }, bush: { r: 20, slow: .95, dbr: ['#3E7431', '#6BB85A'] }, sapling: { r: 16, slow: .92, dbr: ['#3E7431', '#6A4A2C'] },
+  sign: { r: 11, slow: .9, dbr: ['#F2C230', '#3A3E46'] }, phone: { r: 10, slow: .86, dbr: ['#C0392B', '#A9C6DC'] }, bollard: { r: 6, slow: .9, dbr: ['#3A3E46', '#F2C230'] },
+  clock: { r: 9, slow: .85, dbr: ['#2A2D34', '#ECE8DE'] }, tires: { r: 14, slow: .92, dbr: ['#1E2126', '#30353C'] }, litter: { r: 7, slow: 1, dbr: ['#C8C4B4', '#8C6A44'] },
+  trash: { r: 10, slow: 1, dbr: ['#8A8E96', '#6A5A4A'] },
+};
+const PROP_ALIAS = { autumn: 'tree', blossom: 'tree', palm: 'tree' };
 /* Heat (HD): HP daugiklis pagal laiką; Lite - ~1,3 karto lėtesnė kreivė, kad naujokas išbūtų 3+ min. */
 const HEAT_AT = [0, 90, 220, 380, 560, 770, 1000, 1260, 1550, 1860], HEAT_HP = [1, 1.3, 1.7, 2.2, 2.9, 3.8, 5, 6.5, 8.5, 11];
 const BOSS = [{ k: 'heli', at: 270, hp: 1100, xp: 60, coin: 40 }, { k: 'tank', at: 540, hp: 3200, xp: 150, coin: 80 }];

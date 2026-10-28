@@ -3,7 +3,7 @@
 'use strict';
 const LANGS = {
   en: {
-    lang: 'ENGLISH', lv: 'LV', chopper: 'CHOPPER', tank: 'TANK', drag: 'DRAG TO DRIVE', keys: 'WASD / ARROWS TO DRIVE', escape: 'ESCAPE THE POLICE',
+    lang: 'ENGLISH', lv: 'LV', chopper: 'CHOPPER', tank: 'TANK', drag: 'PRESS GAS TO DRIVE', keys: 'WASD / ARROWS TO DRIVE', escape: 'ESCAPE THE POLICE',
     levelup: 'LEVEL UP!', new: 'NEW!', repair: 'REPAIR', coins: 'COINS', paused: 'PAUSED', resume: 'RESUME', soundOn: 'SOUND: ON', soundOff: 'SOUND: OFF',
     endRun: 'END RUN', wrecked: 'WRECKED!', keepDriving: 'KEEP DRIVING?', revive: 'REVIVE', noThanks: 'NO THANKS', newBest: 'NEW BEST!', runOver: 'RUN OVER',
     time: 'TIME', cops: 'COPS', timeBonus: 'TIME BONUS', x2: 'X2 COINS', garage: 'GARAGE', paint: 'PAINT', notEnough: 'NOT ENOUGH COINS', max: 'MAX',
@@ -15,7 +15,7 @@ const LANGS = {
     ud_eng: '+5% SPEED', ud_arm: '+20 HEALTH', ud_mag: '+25% PICKUP RANGE', ud_nit: '+20% NITRO', ud_wpn: '+1 START LEVEL',
   },
   lt: {
-    lang: 'LIETUVIŲ', lv: 'LYG', chopper: 'SRAIGTASPARNIS', tank: 'TANKAS', drag: 'TEMPK PIRŠTU', keys: 'WASD / RODYKLĖS', escape: 'PABĖK NUO POLICIJOS',
+    lang: 'LIETUVIŲ', lv: 'LYG', chopper: 'SRAIGTASPARNIS', tank: 'TANKAS', drag: 'SPAUSK DUJAS', keys: 'WASD / RODYKLĖS', escape: 'PABĖK NUO POLICIJOS',
     levelup: 'NAUJAS LYGIS!', new: 'NAUJA!', repair: 'TAISYMAS', coins: 'MONETOS', paused: 'PAUZĖ', resume: 'TĘSTI', soundOn: 'GARSAS: ĮJ.', soundOff: 'GARSAS: IŠJ.',
     endRun: 'BAIGTI', wrecked: 'SUDAUŽYTA!', keepDriving: 'VAŽIUOTI TOLIAU?', revive: 'ATGAIVINTI', noThanks: 'NE, AČIŪ', newBest: 'REKORDAS!', runOver: 'PABAIGA',
     time: 'LAIKAS', cops: 'POLICIJA', timeBonus: 'UŽ LAIKĄ', x2: 'X2 MONETOS', garage: 'GARAŽAS', paint: 'DAŽAI', notEnough: 'TRŪKSTA MONETŲ', max: 'MAKS',
@@ -27,7 +27,7 @@ const LANGS = {
     ud_eng: '+5% GREIČIO', ud_arm: '+20 GYVYBIŲ', ud_mag: '+25% RINKIMO ATSTUMO', ud_nit: '+20% NITRO', ud_wpn: '+1 PRADINIS LYGIS',
   },
   ru: {
-    lang: 'РУССКИЙ', lv: 'УР', chopper: 'ВЕРТОЛЁТ', tank: 'ТАНК', drag: 'ВЕДИ ПАЛЬЦЕМ', keys: 'WASD / СТРЕЛКИ', escape: 'УДИРАЙ ОТ ПОЛИЦИИ',
+    lang: 'РУССКИЙ', lv: 'УР', chopper: 'ВЕРТОЛЁТ', tank: 'ТАНК', drag: 'ЖМИ ГАЗ', keys: 'WASD / СТРЕЛКИ', escape: 'УДИРАЙ ОТ ПОЛИЦИИ',
     levelup: 'НОВЫЙ УРОВЕНЬ!', new: 'НОВОЕ!', repair: 'РЕМОНТ', coins: 'МОНЕТЫ', paused: 'ПАУЗА', resume: 'ДАЛЬШЕ', soundOn: 'ЗВУК: ВКЛ', soundOff: 'ЗВУК: ВЫКЛ',
     endRun: 'ЗАКОНЧИТЬ', wrecked: 'РАЗБИТ!', keepDriving: 'ЕХАТЬ ДАЛЬШЕ?', revive: 'ОЖИВИТЬ', noThanks: 'НЕТ', newBest: 'РЕКОРД!', runOver: 'КОНЕЦ',
     time: 'ВРЕМЯ', cops: 'ПОЛИЦИЯ', timeBonus: 'ЗА ВРЕМЯ', x2: 'X2 МОНЕТЫ', garage: 'ГАРАЖ', paint: 'КРАСКА', notEnough: 'МАЛО МОНЕТ', max: 'МАКС',
@@ -39,7 +39,7 @@ const LANGS = {
     ud_eng: '+5% СКОРОСТИ', ud_arm: '+20 ЗДОРОВЬЯ', ud_mag: '+25% РАДИУС СБОРА', ud_nit: '+20% НИТРО', ud_wpn: '+1 УРОВЕНЬ НА СТАРТЕ',
   },
   es: {
-    lang: 'ESPAÑOL', lv: 'NV', chopper: 'HELICÓPTERO', tank: 'TANQUE', drag: 'ARRASTRA PARA CONDUCIR', keys: 'WASD / FLECHAS', escape: 'ESCAPA DE LA POLICÍA',
+    lang: 'ESPAÑOL', lv: 'NV', chopper: 'HELICÓPTERO', tank: 'TANQUE', drag: 'PULSA EL GAS', keys: 'WASD / FLECHAS', escape: 'ESCAPA DE LA POLICÍA',
     levelup: '¡SUBES DE NIVEL!', new: '¡NUEVO!', repair: 'REPARAR', coins: 'MONEDAS', paused: 'PAUSA', resume: 'SEGUIR', soundOn: 'SONIDO: SÍ', soundOff: 'SONIDO: NO',
     endRun: 'TERMINAR', wrecked: '¡DESTROZADO!', keepDriving: '¿SEGUIR CONDUCIENDO?', revive: 'REVIVIR', noThanks: 'NO, GRACIAS', newBest: '¡RÉCORD!', runOver: 'FIN',
     time: 'TIEMPO', cops: 'POLICÍAS', timeBonus: 'BONO TIEMPO', x2: 'X2 MONEDAS', garage: 'GARAJE', paint: 'PINTURA', notEnough: 'FALTAN MONEDAS', max: 'MÁX',
@@ -51,7 +51,7 @@ const LANGS = {
     ud_eng: '+5% VELOCIDAD', ud_arm: '+20 VIDA', ud_mag: '+25% ALCANCE', ud_nit: '+20% NITRO', ud_wpn: '+1 NIVEL INICIAL',
   },
   pt: {
-    lang: 'PORTUGUÊS', lv: 'NV', chopper: 'HELICÓPTERO', tank: 'TANQUE', drag: 'ARRASTE PARA DIRIGIR', keys: 'WASD / SETAS', escape: 'FUJA DA POLÍCIA',
+    lang: 'PORTUGUÊS', lv: 'NV', chopper: 'HELICÓPTERO', tank: 'TANQUE', drag: 'APERTE O ACELERADOR', keys: 'WASD / SETAS', escape: 'FUJA DA POLÍCIA',
     levelup: 'SUBIU DE NÍVEL!', new: 'NOVO!', repair: 'CONSERTO', coins: 'MOEDAS', paused: 'PAUSA', resume: 'CONTINUAR', soundOn: 'SOM: SIM', soundOff: 'SOM: NÃO',
     endRun: 'ENCERRAR', wrecked: 'DESTRUÍDO!', keepDriving: 'CONTINUAR DIRIGINDO?', revive: 'REVIVER', noThanks: 'NÃO, VALEU', newBest: 'RECORDE!', runOver: 'FIM',
     time: 'TEMPO', cops: 'POLICIAIS', timeBonus: 'BÔNUS TEMPO', x2: 'X2 MOEDAS', garage: 'GARAGEM', paint: 'PINTURA', notEnough: 'FALTAM MOEDAS', max: 'MÁX',
@@ -63,7 +63,7 @@ const LANGS = {
     ud_eng: '+5% VELOCIDADE', ud_arm: '+20 VIDA', ud_mag: '+25% ALCANCE', ud_nit: '+20% NITRO', ud_wpn: '+1 NÍVEL INICIAL',
   },
   fr: {
-    lang: 'FRANÇAIS', lv: 'NIV', chopper: 'HÉLICO', tank: 'CHAR', drag: 'GLISSE POUR CONDUIRE', keys: 'ZQSD / FLÈCHES', escape: 'ÉCHAPPE À LA POLICE',
+    lang: 'FRANÇAIS', lv: 'NIV', chopper: 'HÉLICO', tank: 'CHAR', drag: 'APPUIE SUR LE GAZ', keys: 'ZQSD / FLÈCHES', escape: 'ÉCHAPPE À LA POLICE',
     levelup: 'NIVEAU SUPÉRIEUR!', new: 'NOUVEAU!', repair: 'RÉPARER', coins: 'PIÈCES', paused: 'PAUSE', resume: 'REPRENDRE', soundOn: 'SON: OUI', soundOff: 'SON: NON',
     endRun: 'ABANDONNER', wrecked: 'DÉTRUIT!', keepDriving: 'CONTINUER?', revive: 'REVIVRE', noThanks: 'NON MERCI', newBest: 'RECORD!', runOver: 'FIN',
     time: 'TEMPS', cops: 'POLICIERS', timeBonus: 'BONUS TEMPS', x2: 'X2 PIÈCES', garage: 'GARAGE', paint: 'PEINTURE', notEnough: 'PAS ASSEZ DE PIÈCES', max: 'MAX',
@@ -75,7 +75,7 @@ const LANGS = {
     ud_eng: '+5% VITESSE', ud_arm: '+20 VIE', ud_mag: '+25% PORTÉE', ud_nit: '+20% NITRO', ud_wpn: '+1 NIVEAU DE DÉPART',
   },
   de: {
-    lang: 'DEUTSCH', lv: 'LV', chopper: 'HUBSCHRAUBER', tank: 'PANZER', drag: 'ZIEHEN ZUM FAHREN', keys: 'WASD / PFEILE', escape: 'ENTKOMME DER POLIZEI',
+    lang: 'DEUTSCH', lv: 'LV', chopper: 'HUBSCHRAUBER', tank: 'PANZER', drag: 'GAS GEBEN', keys: 'WASD / PFEILE', escape: 'ENTKOMME DER POLIZEI',
     levelup: 'LEVEL UP!', new: 'NEU!', repair: 'REPARATUR', coins: 'MÜNZEN', paused: 'PAUSE', resume: 'WEITER', soundOn: 'TON: AN', soundOff: 'TON: AUS',
     endRun: 'BEENDEN', wrecked: 'SCHROTT!', keepDriving: 'WEITERFAHREN?', revive: 'RETTEN', noThanks: 'NEIN DANKE', newBest: 'REKORD!', runOver: 'ENDE',
     time: 'ZEIT', cops: 'POLIZEI', timeBonus: 'ZEITBONUS', x2: 'X2 MÜNZEN', garage: 'GARAGE', paint: 'LACK', notEnough: 'ZU WENIG MÜNZEN', max: 'MAX',
@@ -87,7 +87,7 @@ const LANGS = {
     ud_eng: '+5% TEMPO', ud_arm: '+20 LEBEN', ud_mag: '+25% REICHWEITE', ud_nit: '+20% NITRO', ud_wpn: '+1 STARTLEVEL',
   },
   it: {
-    lang: 'ITALIANO', lv: 'LV', chopper: 'ELICOTTERO', tank: 'CARRO ARMATO', drag: 'TRASCINA PER GUIDARE', keys: 'WASD / FRECCE', escape: 'SCAPPA DALLA POLIZIA',
+    lang: 'ITALIANO', lv: 'LV', chopper: 'ELICOTTERO', tank: 'CARRO ARMATO', drag: "PREMI L'ACCELERATORE", keys: 'WASD / FRECCE', escape: 'SCAPPA DALLA POLIZIA',
     levelup: 'LIVELLO SUPERIORE!', new: 'NUOVO!', repair: 'RIPARA', coins: 'MONETE', paused: 'PAUSA', resume: 'RIPRENDI', soundOn: 'AUDIO: SÌ', soundOff: 'AUDIO: NO',
     endRun: 'TERMINA', wrecked: 'DISTRUTTO!', keepDriving: 'CONTINUI A GUIDARE?', revive: 'RIVIVI', noThanks: 'NO, GRAZIE', newBest: 'RECORD!', runOver: 'FINE',
     time: 'TEMPO', cops: 'POLIZIOTTI', timeBonus: 'BONUS TEMPO', x2: 'X2 MONETE', garage: 'GARAGE', paint: 'VERNICE', notEnough: 'MONETE INSUFFICIENTI', max: 'MAX',
@@ -99,7 +99,7 @@ const LANGS = {
     ud_eng: '+5% VELOCITÀ', ud_arm: '+20 VITA', ud_mag: '+25% RAGGIO', ud_nit: '+20% NITRO', ud_wpn: '+1 LIVELLO INIZIALE',
   },
   pl: {
-    lang: 'POLSKI', lv: 'POZ', chopper: 'HELIKOPTER', tank: 'CZOŁG', drag: 'PRZECIĄGNIJ, BY JECHAĆ', keys: 'WASD / STRZAŁKI', escape: 'UCIEKAJ PRZED POLICJĄ',
+    lang: 'POLSKI', lv: 'POZ', chopper: 'HELIKOPTER', tank: 'CZOŁG', drag: 'WCIŚNIJ GAZ', keys: 'WASD / STRZAŁKI', escape: 'UCIEKAJ PRZED POLICJĄ',
     levelup: 'NOWY POZIOM!', new: 'NOWE!', repair: 'NAPRAWA', coins: 'MONETY', paused: 'PAUZA', resume: 'DALEJ', soundOn: 'DŹWIĘK: TAK', soundOff: 'DŹWIĘK: NIE',
     endRun: 'ZAKOŃCZ', wrecked: 'ROZBITY!', keepDriving: 'JEDZIESZ DALEJ?', revive: 'OŻYW', noThanks: 'NIE, DZIĘKI', newBest: 'REKORD!', runOver: 'KONIEC',
     time: 'CZAS', cops: 'POLICJA', timeBonus: 'BONUS CZASU', x2: 'X2 MONETY', garage: 'GARAŻ', paint: 'LAKIER', notEnough: 'ZA MAŁO MONET', max: 'MAKS',
@@ -111,7 +111,7 @@ const LANGS = {
     ud_eng: '+5% PRĘDKOŚCI', ud_arm: '+20 ŻYCIA', ud_mag: '+25% ZASIĘGU', ud_nit: '+20% NITRO', ud_wpn: '+1 POZIOM STARTOWY',
   },
   tr: {
-    lang: 'TÜRKÇE', lv: 'SV', chopper: 'HELİKOPTER', tank: 'TANK', drag: 'SÜRMEK İÇİN KAYDIR', keys: 'WASD / OKLAR', escape: 'POLİSTEN KAÇ',
+    lang: 'TÜRKÇE', lv: 'SV', chopper: 'HELİKOPTER', tank: 'TANK', drag: 'GAZA BAS', keys: 'WASD / OKLAR', escape: 'POLİSTEN KAÇ',
     levelup: 'SEVİYE ATLADIN!', new: 'YENİ!', repair: 'TAMİR', coins: 'PARA', paused: 'DURAKLATILDI', resume: 'DEVAM', soundOn: 'SES: AÇIK', soundOff: 'SES: KAPALI',
     endRun: 'BİTİR', wrecked: 'HURDA OLDUN!', keepDriving: 'DEVAM ET?', revive: 'CANLAN', noThanks: 'HAYIR', newBest: 'REKOR!', runOver: 'BİTTİ',
     time: 'SÜRE', cops: 'POLİS', timeBonus: 'SÜRE BONUSU', x2: 'X2 PARA', garage: 'GARAJ', paint: 'BOYA', notEnough: 'PARA YETMİYOR', max: 'MAKS',

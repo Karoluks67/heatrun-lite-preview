@@ -9,7 +9,7 @@ const TRF_W = [3, 4, 2, 2, 2, 1, 0];                 // eismo dažnis
 const TRF_LEN = [46, 52, 54, 60, 56, 80, 92], TRF_WID = [22, 24, 24, 28, 26, 30, 28];   // kapsulė (TRF_MODELS len / wid)
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 let civs = [], parkUsed = new Set(), civT = 0;
-const TRAFFIC_N = 6;
+const TRAFFIC_N = 0;   // vartotojas 2026-10-28: judantis eismas atrodė „goofy" - vietoj jo daugiau policijos (pastatytos mašinos lieka)
 
 function civReset() { civs = []; parkUsed = new Set(); civT = 0; }
 function civMake(x, y, a, m, c, mode) {
