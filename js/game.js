@@ -10,7 +10,7 @@ function newRun() {
   G = { t: 0, car, up, lvl: 1, xp: 0, need: xpNeed(1), coins: 0, kills: 0, w: { [car.w]: 1 + up.wpn }, tl: {}, cd: {}, orbA: 0, laser: null,
     spawnT: 2, bossI: 0, bossWarn: 0, banner: null, over: 0, revived: false, started: false, cards: null, pend: 0, hitStop: 0, tut: save.runs === 0 };
   const mx = Math.round((150 + car.hp + up.arm * 20));
-  Object.assign(pl, { x: 0, y: 0, a: -Math.PI / 2, vx: 0, vy: 0, nitro: .5 + up.nit * .1, boost: false, inv: 1.5, hp: mx, max: mx, drift: 0,
+  Object.assign(pl, { x: 0, y: 0, a: -Math.PI / 2, vx: 0, vy: 0, nitro: .5 + up.nit * .1, boost: false, dry: false, inv: 1.5, hp: mx, max: mx, drift: 0,
     spr: `car_${car.id}_${cs.paint}`, sh: `car_${car.id}_sh` });
   bodyInit(pl, Object.assign({ len: 52, wid: 24, top: TOP }, car.phys || {})); pl.vx = 0; pl.vy = 0; pl.revMode = false; pl.L = 26; pl.W = 12;
   const cm = A.spr.cars.find(c => c.id === car.id); pl.rear = (cm ? cm.L / 2 : 15) / PPU + 2;   // galinis buferis (sprite'o ilgis) - iš ten nitro liepsna ir dūmai
@@ -58,7 +58,8 @@ function playerCtl() {
       else if (Math.abs(df) > 1.25 && u > 330) c.hb = true;   // staigus posūkis greitai - driftas
     }
   } else if (stick.on) c.brk = .6;   // pirštas ekrane, bet vietoje - stabdo
-  c.nitro = (keys.ShiftLeft || keys.ShiftRight || keys.KeyN || nitroBtn.on || tb.nitro || PAD && PAD.nitro) && pl.nitro > .02 && u > 40 && !pl.revMode && !(pl.empT > 0);
+  if (pl.nitro <= .02) pl.dry = true; else if (pl.nitro >= .2) pl.dry = false;   // ištuštėjęs nitro įsijungia tik prisipildęs iki 20 % - be mirgėjimo laikant Shift
+  c.nitro = (keys.ShiftLeft || keys.ShiftRight || keys.KeyN || nitroBtn.on || tb.nitro || PAD && PAD.nitro) && !pl.dry && u > 40 && !pl.revMode && !(pl.empT > 0);
   return c;
 }
 function stepPlayer(dt) {

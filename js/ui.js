@@ -146,9 +146,11 @@ function drawHud(t) {
   if (touchUI) drawTouch(t);
   else {   /* nitro mygtukas (pelė / klaviatūra) */
     const [nx, ny] = NB(), full = pl.nitro, R = 28;
+    const dk = pl.dry ? .5 + .5 * Math.sin(t * 6) : 0;   // tuščias: sklandus raudonas pulsavimas
     ctx.fillStyle = '#0E1014'; circlePx(nx + 1, ny + 2, R + 1); ctx.fillStyle = pl.boost ? '#5AB8FF' : '#2A2E37'; circlePx(nx, ny, R);
+    if (dk > 0) { ctx.fillStyle = `rgba(200,40,40,${(.15 + dk * .4).toFixed(2)})`; circlePx(nx, ny, R); }
     ctx.fillStyle = pl.boost ? '#8FD0FF' : '#1A4E8C'; for (let y = -R + 1; y <= R - 1; y++) { if ((R - y) / (2 * R) > full) continue; const w = Math.floor(Math.sqrt(R * R - y * y)); ctx.fillRect(nx - w, ny + y, w * 2 + 1, 1); }
-    ringPx(nx, ny, R, full > .98 && Math.floor(t * 4) % 2 ? '#FFFFFF' : '#5AB8FF');
+    ringPx(nx, ny, R, pl.dry ? `rgb(255,${Math.round(70 + 60 * (1 - dk))},${Math.round(70 + 60 * (1 - dk))})` : full > .98 ? `rgb(${Math.round(90 + 165 * (.5 + .5 * Math.sin(t * 5)))},${Math.round(184 + 71 * (.5 + .5 * Math.sin(t * 5)))},255)` : '#5AB8FF');   // pilnas - sklandžiai švyti baltai
     icon('nitro', nx - 16, ny - 17, 1); T('SHIFT', nx, ny + R + 4, 1, COL.dim, .5);
     if (G.tut && !G.nitroUsed && pl.nitro > .97 && G.t > 6) { const b = Math.abs(Math.sin(t * 5)) * 6; hand(nx - 30 + b, ny - 34 + b); ringPx(nx, ny, R + 4 + Math.floor(t * 8) % 4, '#FFFFFF'); }
   }
@@ -165,7 +167,9 @@ function drawTouch(t) {
   r = pad('right', '#2A2E37', '#4A5060'); arrow(r[0], r[1], r[2], r[3], 'r', '#F4F1E8');
   r = pad('brake', '#5A2A2A', '#8A3A3A'); arrow(r[0], r[1], r[2], r[3], 'd', '#FFB0A0');
   r = pad('gas', '#7A3E10', COL.acc); arrow(r[0], r[1], r[2], r[3], 'u', '#FFF3B0');
-  r = pad('nitro', pl.boost ? '#3A7AC0' : '#1A2E4A', '#5AB8FF'); ctx.fillStyle = '#5AB8FF'; ctx.fillRect(r[0] + 4, r[1] + r[3] - 7, Math.round((r[2] - 8) * pl.nitro), 4); icon('nitro', r[0] + r[2] / 2 - 16, r[1] + 6, 1);
+  r = pad('nitro', pl.boost ? '#3A7AC0' : '#1A2E4A', '#5AB8FF');
+  if (pl.dry) { ctx.fillStyle = `rgba(200,40,40,${(.2 + .4 * (.5 + .5 * Math.sin(t * 6))).toFixed(2)})`; ctx.fillRect(r[0] + 1, r[1] + 1, r[2] - 2, r[3] - 2); }   // tuščias - raudonas pulsavimas
+  ctx.fillStyle = '#5AB8FF'; ctx.fillRect(r[0] + 4, r[1] + r[3] - 7, Math.round((r[2] - 8) * pl.nitro), 4); icon('nitro', r[0] + r[2] / 2 - 16, r[1] + 6, 1);
   if (G.tut && !G.nitroUsed && pl.nitro > .97 && G.t > 6) { const b = Math.abs(Math.sin(t * 5)) * 6; hand(L.nitro[0] - 10 + b, L.nitro[1] + 20 + b); }
 }
 function offArrow(c, t) {   // rodyklė į bosą už ekrano (pasaulio px -> UI px)
