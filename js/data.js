@@ -72,7 +72,7 @@ const PROP_T = {
   clock: { r: 9, slow: .85, dbr: ['#2A2D34', '#ECE8DE'] }, tires: { r: 14, slow: .92, dbr: ['#1E2126', '#30353C'] }, litter: { r: 7, slow: 1, dbr: ['#C8C4B4', '#8C6A44'] },
   trash: { r: 10, slow: 1, dbr: ['#8A8E96', '#6A5A4A'] },
 };
-const PROP_ALIAS = { autumn: 'tree', blossom: 'tree', palm: 'tree' };
+const PROP_ALIAS = { autumn: 'tree', blossom: 'tree', palm: 'tree', pine: 'ftree', spine: 'ftree', tirerack: 'tires' };   // eglės - kaip miško medžiai (Steam FOREST_BREAK)
 /* Heat (HD): HP daugiklis pagal laiką; Lite - ~1,3 karto lėtesnė kreivė, kad naujokas išbūtų 3+ min. */
 const HEAT_AT = [0, 90, 220, 380, 560, 770, 1000, 1260, 1550, 1860], HEAT_HP = [1, 1.3, 1.7, 2.2, 2.9, 3.8, 5, 6.5, 8.5, 11];
 const BOSS = [{ k: 'heli', at: 270, hp: 1100, xp: 60, coin: 40 }, { k: 'tank', at: 540, hp: 3200, xp: 150, coin: 80 }];
