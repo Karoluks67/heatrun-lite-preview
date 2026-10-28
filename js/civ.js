@@ -1,18 +1,20 @@
 /* civ: miesto gyvybė - pastatytos mašinos (Steam Run.ParkedLook išvaizda) ir civilinis eismas keliais (Steam TRF_MODELS / TRF_COLS sprite'ai).
-   Abi stumdomos: žaidėjas ir policija jas išstumia, sprogimai susprogdina (grandinės). Žmonių nėra. */
+   Visos - kūnai su Steam fizika (js/vehicle.js): susidūrimai pagal masę, išstumtos slysta ir sukasi; sprogimai susprogdina (grandinės). Žmonių nėra. */
 'use strict';
 const TRF_COLS = ['#B8BCC4', '#E8E6E0', '#C9B98F', '#2C3E66', '#7A2430', '#2F5A3A', '#6A6E76', '#1E2024'];
 const TRF_V = [260, 270, 250, 210, 240, 190, 170];   // modelio greitis (hatch, sedan, wagon, boxvan, pickup, semi, bus)
 const TRF_R = [20, 22, 22, 26, 24, 32, 36];          // susidūrimo spindulys (vnt.)
 const TRF_M = [.9, 1, 1.05, 1.6, 1.3, 2.6, 3.2];     // masė (TRF_MODELS m)
 const TRF_W = [3, 4, 2, 2, 2, 1, 0];                 // eismo dažnis
+const TRF_LEN = [46, 52, 54, 60, 56, 80, 92], TRF_WID = [22, 24, 24, 28, 26, 30, 28];   // kapsulė (TRF_MODELS len / wid)
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 let civs = [], parkUsed = new Set(), civT = 0;
 const TRAFFIC_N = 6;
 
 function civReset() { civs = []; parkUsed = new Set(); civT = 0; }
 function civMake(x, y, a, m, c, mode) {
-  return { x, y, a, vx: 0, vy: 0, w: 0, m, c: m === 6 ? c % 2 : c, r: TRF_R[m], mass: TRF_M[m], hp: 30 + TRF_M[m] * 20, mode, h: 0, v: 0, shift: 0, laneT: 0, turnCd: 0, slowT: 0 };
+  const o = { x, y, a, model: m, c: m === 6 ? c % 2 : c, r: TRF_R[m], hp: 30 + TRF_M[m] * 20, mode, h: 0, v: 0, shift: 0, laneT: 0, turnCd: 0, isCiv: true };
+  return bodyInit(o, { m: TRF_M[m], len: TRF_LEN[m], wid: TRF_WID[m], top: TRF_V[m] });
 }
 /* Pastatytą mašiną (statinis žemėlapio įrašas) paverčia judančiu kūnu, kai ją kas nors paliečia */
 function parkWake(x, y, r) {
@@ -59,11 +61,11 @@ function stepDrive(c, dt) {
   /* kliūtis priekyje (žaidėjas, policija, kita mašina) - stabdo */
   let block = false; const chk = (x, y) => { const px = x - c.x, py = y - c.y, f = px * dx + py * dy, s = Math.abs(px * rx + py * ry); if (f > 0 && f < 100 + c.r && s < 34) block = true; };
   chk(pl.x, pl.y); for (const o of civs) if (o !== c) chk(o.x, o.y); for (const o of cops) if (!o.dead && o.boss !== 'heli') chk(o.x, o.y);
-  const vt = block ? 0 : TRF_V[c.m]; c.v += (vt - c.v) * (block ? 4 : 1.2) * dt;
+  const vt = block ? 0 : TRF_V[c.model]; c.v += (vt - c.v) * (block ? 4 : 1.2) * dt;
   const sh = clamp(c.shift, -90 * dt, 90 * dt); c.shift -= sh;
   c.x += dx * c.v * dt + rx * sh; c.y += dy * c.v * dt + ry * sh;
   c.a += clamp(angDiff(c.a, Math.atan2(dy, dx)), -4 * dt, 4 * dt);
-  c.vx = dx * c.v; c.vy = dy * c.v;
+  c.vx = dx * c.v; c.vy = dy * c.v; c.w = 0;
 }
 function stepCivs(dt) {
   if (!G.started) return;
@@ -73,33 +75,15 @@ function stepCivs(dt) {
   const vr = Math.hypot(WW, WH) / 2 / PPU;
   for (const c of civs) {
     if (c.mode === 'drive') stepDrive(c, dt);
-    else {   // išstumta: slysta, sukasi, lėtėja; sienos atmuša
-      c.vx *= Math.exp(-1.8 * dt); c.vy *= Math.exp(-1.8 * dt); c.w *= Math.exp(-2 * dt); c.a += c.w * dt;
-      const nx = c.x + c.vx * dt; if (solidAt(nx, c.y)) c.vx *= -.4; else c.x = nx;
-      const ny = c.y + c.vy * dt; if (solidAt(c.x, ny)) c.vy *= -.4; else c.y = ny;
-    }
-    /* su žaidėju: impulsas pagal masę; smarkus smūgis (ypač su nitro) - žala, kol susprogsta */
-    const dx = c.x - pl.x, dy = c.y - pl.y, d = Math.hypot(dx, dy), R = c.r + 22;
-    if (d < R && d > 0 && !G.over) {
-      const nx = dx / d, ny = dy / d, vr2 = (pl.vx - c.vx) * nx + (pl.vy - c.vy) * ny;
-      c.x += nx * (R - d) * .8; c.y += ny * (R - d) * .8; pl.x -= nx * (R - d) * .2; pl.y -= ny * (R - d) * .2;
-      if (vr2 > 0) {
-        const k = 1.5 / c.mass; c.vx += nx * vr2 * k; c.vy += ny * vr2 * k; const pk = Math.min(.4, .15 * c.mass); pl.vx -= nx * vr2 * pk; pl.vy -= ny * vr2 * pk;   // žaidėjas beveik neužstringa - mašinos lekia šalin
-        c.w += (Math.random() - .5) * vr2 / 60; c.mode = 'loose';
-        if (vr2 > 160) { sfx('crash'); shake = Math.max(shake, .1); c.hp -= (vr2 - 120) * .12 * (pl.boost ? 2.5 : 1) * dmgMul(); }
-      }
-    }
-    /* su policija: policija stumia ir sulėtėja */
-    for (const o of cops) { if (o.dead || o.boss === 'heli') continue; const ex = c.x - o.x, ey = c.y - o.y, e = Math.hypot(ex, ey), Q = c.r + o.r; if (e >= Q || e === 0) continue;
-      const nx = ex / e, ny = ey / e; c.x += nx * (Q - e) * .6; c.y += ny * (Q - e) * .6; o.x -= nx * (Q - e) * .4; o.y -= ny * (Q - e) * .4;
-      const ov = Math.cos(o.a) * o.v * nx + Math.sin(o.a) * o.v * ny; if (ov > 60) { c.vx += nx * ov * .8 / c.mass; c.vy += ny * ov * .8 / c.mass; c.w += (Math.random() - .5) * 2; c.mode = 'loose'; o.v *= .5; } }
-  }
-  for (let i = 0; i < civs.length; i++) for (let j = i + 1; j < civs.length; j++) {   // tarpusavyje - tik atstumiamos
-    const a = civs[i], b = civs[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), m = a.r + b.r; if (d >= m || d === 0) continue;
-    const p = (m - d) / 2 / d; a.x -= dx * p; a.y -= dy * p; b.x += dx * p; b.y += dy * p;
+    else { const cl = clsAt(c.x, c.y); bodyMove(c, { steer: 0, thr: 0, brk: .35, rev: 0, hb: false }, dt, SURF_V[Math.min(9, cl)] || 1, SURF_G[Math.min(9, cl)] || 1); }   // išstumta: slysta, sukasi, stoja
   }
   for (const c of civs) if (c.hp <= 0 && !c.gone) civBoom(c);
   civs = civs.filter(c => !c.gone && Math.hypot(c.x - pl.x, c.y - pl.y) < (c.mode === 'drive' ? vr * 2.3 : 2600));
+}
+/* Smūgis į civilinę mašiną (iš js/game.js carHit): nustumta nebevažiuoja; stiprus - žala, kol susprogsta */
+function civHit(c, dv) {
+  if (dv > 15) c.mode = 'loose';
+  if (dv > 60) { c.hp -= (dv - 40) * .12 * (pl.boost ? 2 : 1); if (dv > 120) sfx('crash'); }
 }
 /* Civilinės mašinos sprogimas: kaip policijos (Steam KillCop vaizdas), monetos kartais; sužeidžia aplink esančią policiją */
 function civBoom(c) {
@@ -111,7 +95,7 @@ function civBoom(c) {
 function civBlast(x, y, R, dmg) {
   parkWake(x, y, R);
   for (const c of civs) { if (c.gone) continue; const dx = c.x - x, dy = c.y - y, d = Math.hypot(dx, dy) || 1; if (d > R + c.r) continue;
-    c.hp -= dmg; c.mode = 'loose'; c.vx += dx / d * 260 / c.mass; c.vy += dy / d * 260 / c.mass; c.w += (Math.random() - .5) * 6; }
+    c.hp -= dmg; c.mode = 'loose'; c.vx += dx / d * 260 / c.m; c.vy += dy / d * 260 / c.m; c.w += (Math.random() - .5) * 6; c.spinT = .6; }
 }
 function drawCivs() {
   /* pastatytos (statinės) */
@@ -122,6 +106,6 @@ function drawCivs() {
       const n = `trf_${p[3]}_${p[3] === 6 ? p[4] % 2 : p[4]}`; sprRot(n + '_sh', x + 2, y + 2, p[2]); sprRot(n + '_spr', x, y, p[2]); }
   }
   for (const c of civs) { const [x, y] = P2(c.x, c.y); if (x < -40 || y < -40 || x > WW + 40 || y > WH + 40) continue;
-    const n = `trf_${c.m}_${c.c}`; sprRot(n + '_sh', x + 2, y + 2, c.a); sprRot(n + '_spr', x, y, c.a, c.hp < 15 ? 'd' : 0);
+    const n = `trf_${c.model}_${c.c}`; sprRot(n + '_sh', x + 2, y + 2, c.a); sprRot(n + '_spr', x, y, c.a, c.hp < 15 ? 'd' : 0);
     if (c.hp < 15 && Math.random() < .3) puff(c.x, c.y, rnd(-10, 10), rnd(-30, -15), 1, 3, '#5A5E68'); }   // apgadinta - rūksta
 }

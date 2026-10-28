@@ -9,8 +9,6 @@ const WB = { x0: 0, y0: 0, x1: 0, y1: 0 };   // srities ribos (vnt.)
 function worldInit() {
   const m = A.map, g = m.ring || 0;   // žiedas - dekoratyvūs gabalai už atitvaro (miestas tęsiasi, bet ten nevažiuojama)
   WB.x0 = (m.cx0 + g) * CH / PPU; WB.y0 = (m.cy0 + g) * CH / PPU; WB.x1 = (m.cx1 + 1 - g) * CH / PPU; WB.y1 = (m.cy1 + 1 - g) * CH / PPU;
-  NAV.w = Math.ceil((WB.x1 - WB.x0) / NAV.c); NAV.h = Math.ceil((WB.y1 - WB.y0) / NAV.c);
-  NAV.pass = new Int8Array(NAV.w * NAV.h).fill(-1); NAV.dist = new Uint16Array(NAV.w * NAV.h);
 }
 const inRegion = (cx, cy) => cx >= A.map.cx0 && cy >= A.map.cy0 && cx <= A.map.cx1 && cy <= A.map.cy1;
 function loadChunk(cx, cy) {
@@ -56,41 +54,60 @@ function freeNear(x, y, maxR) {
   return [x, y];
 }
 
-/* ---------- Navigacija: BFS atstumų laukas nuo žaidėjo (langeliai 40 vnt.) - policija apvažiuoja kvartalus ---------- */
-const NAV = { c: 40, w: 0, h: 0, pass: null, dist: null, t: 0, R: 60 };
-function navPass(i, j) {
-  const k = j * NAV.w + i; let p = NAV.pass[k]; if (p >= 0) return p;
-  const x = WB.x0 + (i + .5) * NAV.c, y = WB.y0 + (j + .5) * NAV.c; if (!ready(x, y)) return 0;
-  p = solidAt(x, y) || (solidAt(x - 14, y) && solidAt(x + 14, y)) || (solidAt(x, y - 14) && solidAt(x, y + 14)) ? 0 : 1;
-  return NAV.pass[k] = p;
+/* ---------- Navigacija: Steam / prototipo policijos laukas (02e-police navBuild) - Dijkstra nuo žaidėjo, kaina pagal paviršių:
+   kelias pigiausias, aikštės ir šaligatviai brangiau, žolė - dar brangiau, todėl policija renkasi gatves ir apvažiuoja kvartalus ---------- */
+const NAV_C = 40, NAV_R = 1600;
+const NAV = { n: 0, ox: 0, oy: 0, dist: null, cost: null, dx: null, dy: null, hk: null, hv: null, sc: null, st: null, gen: 0, t: 0 };
+function rawAt(x, y) {   // Cls | 128 (kelias); už srities - kieta
+  if (x < WB.x0 + 40 || y < WB.y0 + 40 || x > WB.x1 - 40 || y > WB.y1 - 40) return 9;
+  const px = Math.floor(x * PPU), py = Math.floor(y * PPU), cx = Math.floor(px / CH), cy = Math.floor(py / CH);
+  const c = chunks.get(cx + '_' + cy); return c && c.cls ? c.cls[(py - cy * CH) * CH + (px - cx * CH)] : 0;
 }
-function navUpdate(px, py) {
-  const pi = Math.floor((px - WB.x0) / NAV.c), pj = Math.floor((py - WB.y0) / NAV.c), R = NAV.R;
-  NAV.dist.fill(65535); NAV.ci = pi; NAV.cj = pj;
-  if (pi < 0 || pj < 0 || pi >= NAV.w || pj >= NAV.h) return;
-  const q = new Int32Array((2 * R + 1) * (2 * R + 1)); let h = 0, t = 0; q[t++] = pj * NAV.w + pi; NAV.dist[pj * NAV.w + pi] = 0;
-  while (h < t) {
-    const k = q[h++], i = k % NAV.w, j = (k - i) / NAV.w, d = NAV.dist[k];
-    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const ni = i + di, nj = j + dj; if (ni < 0 || nj < 0 || ni >= NAV.w || nj >= NAV.h || Math.abs(ni - pi) > R || Math.abs(nj - pj) > R) continue;
-      const nk = nj * NAV.w + ni; if (NAV.dist[nk] !== 65535 || !navPass(ni, nj)) continue; NAV.dist[nk] = d + 1; q[t++] = nk;
-    }
-  }
+const navCellCost = v => (v & 15) >= SOLID ? Infinity : v === 128 ? 1 : ({ 0: 1.2, 1: 2.5, 2: 2.5, 3: 2.8, 4: 1, 5: 1.25, 6: 1.3 })[v & 15] || 1.2;
+const NDI = [1, -1, 0, 0, 1, 1, -1, -1], NDJ = [0, 0, 1, -1, 1, -1, 1, -1];
+function navBuild(px, py) {
+  const C = NAV_C, h = Math.ceil(NAV_R / C), n = 2 * h + 1, N = n * n;
+  if (NAV.n !== n) Object.assign(NAV, { n, dist: new Float32Array(N), cost: new Float32Array(N), dx: new Float32Array(N), dy: new Float32Array(N), hk: new Float32Array(N * 8 + 8), hv: new Int32Array(N * 8 + 8), sc: new Uint8Array((n + 1) * (n + 1)), st: new Uint32Array(N), gen: 0 });
+  const ox = Math.round(px / C) - h, oy = Math.round(py / C) - h, cost = NAV.cost, dist = NAV.dist; NAV.ox = ox; NAV.oy = oy;
+  /* langelis kietas, jei kietas centras arba bet kuris kampas (±C/2) - kelias eina bent pusę langelio nuo sienų */
+  const e = C / 2, m = n + 1, SC = NAV.sc;
+  for (let j = 0; j < m; j++) { const y = (oy + j) * C - e; for (let i = 0; i < m; i++) SC[j * m + i] = (rawAt((ox + i) * C - e, y) & 15) >= SOLID ? 1 : 0; }
+  for (let j = 0; j < n; j++) { const y = (oy + j) * C; for (let i = 0; i < n; i++) { const x = (ox + i) * C, k = j * n + i, q = j * m + i;
+    cost[k] = SC[q] || SC[q + 1] || SC[q + m] || SC[q + m + 1] ? Infinity : navCellCost(rawAt(x, y)); dist[k] = Infinity; } }
+  const hk = NAV.hk, hv = NAV.hv; let hn = 0;
+  const push = (key, v) => { let i = hn++; while (i > 0) { const p = (i - 1) >> 1; if (hk[p] <= key) break; hk[i] = hk[p]; hv[i] = hv[p]; i = p; } hk[i] = key; hv[i] = v; };
+  const pop = () => { const v = hv[0], last = hk[--hn], lv = hv[hn]; let i = 0;
+    for (;;) { let l = 2 * i + 1; if (l >= hn) break; if (l + 1 < hn && hk[l + 1] < hk[l]) l++; if (hk[l] >= last) break; hk[i] = hk[l]; hv[i] = hv[l]; i = l; }
+    hk[i] = last; hv[i] = lv; return v; };
+  const s0 = h * n + h; dist[s0] = 0; push(0, s0);
+  while (hn > 0) { const kd = hk[0], k = pop(); if (kd > dist[k]) continue; const i = k % n, j = (k - i) / n, c0 = cost[k] === Infinity ? 1 : cost[k];
+    for (let q = 0; q < 8; q++) { const ii = i + NDI[q], jj = j + NDJ[q]; if (ii < 0 || jj < 0 || ii >= n || jj >= n) continue; const k2 = jj * n + ii, c2 = cost[k2]; if (c2 === Infinity) continue;
+      if (q >= 4 && (cost[j * n + ii] === Infinity || cost[jj * n + i] === Infinity)) continue;   // įstrižai - be kampų kirpimo
+      const nd = kd + (c0 + c2) * .5 * C * (q >= 4 ? 1.4142 : 1); if (nd < dist[k2]) { dist[k2] = nd; if (hn < hk.length) push(nd, k2); } } }
+  NAV.gen++;
 }
-/* Kryptis į žaidėją per lauką: kaimyninis langelis su mažiausiu atstumu (8 kryptys); null - laukas nepasiekia */
+function navCellDir(k) {
+  if (NAV.st[k] === NAV.gen) return; NAV.st[k] = NAV.gen; const n = NAV.n, dist = NAV.dist; NAV.dx[k] = 0; NAV.dy[k] = 0;
+  const d0 = dist[k]; if (!(d0 < Infinity) || d0 === 0) return; const i = k % n, j = (k - i) / n; let best = d0, bi = 0, bj = 0;
+  for (let q = 0; q < 8; q++) { const ii = i + NDI[q], jj = j + NDJ[q]; if (ii < 0 || jj < 0 || ii >= n || jj >= n) continue; const d2 = dist[jj * n + ii]; if (d2 < best) { best = d2; bi = NDI[q]; bj = NDJ[q]; } }
+  if (bi || bj) { const L = Math.hypot(bi, bj); NAV.dx[k] = bi / L; NAV.dy[k] = bj / L; }
+}
+/* Kryptis į žaidėją: 4 artimiausių langelių kryptys su bilinijiniais svoriais (be zigzagų); kieti atstumia. Už lauko - null */
 function navDir(x, y) {
-  const i = Math.floor((x - WB.x0) / NAV.c), j = Math.floor((y - WB.y0) / NAV.c); if (i < 0 || j < 0 || i >= NAV.w || j >= NAV.h) return null;
-  const d0 = NAV.dist[j * NAV.w + i]; let best = d0, bx = 0, by = 0;
-  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
-    if (!di && !dj) continue; const ni = i + di, nj = j + dj; if (ni < 0 || nj < 0 || ni >= NAV.w || nj >= NAV.h) continue;
-    if (di && dj && (NAV.dist[j * NAV.w + ni] === 65535 || NAV.dist[nj * NAV.w + i] === 65535)) continue;   // įstrižai - tik kai abu šonai laisvi
-    const d = NAV.dist[nj * NAV.w + ni] + (di && dj ? .4 : 0); if (d < best) { best = d; bx = di; by = dj; }
-  }
-  if (best === 65535 || (!bx && !by)) return null;
-  return Math.atan2(by, bx);
+  if (!NAV.dist) return null; const C = NAV_C, n = NAV.n, fx = x / C - NAV.ox, fy = y / C - NAV.oy, i0 = Math.floor(fx), j0 = Math.floor(fy);
+  if (i0 < 0 || j0 < 0 || i0 >= n - 1 || j0 >= n - 1) return null; const tx = fx - i0, ty = fy - j0; let sx = 0, sy = 0;
+  for (let q = 0; q < 4; q++) { const i = i0 + (q & 1), j = j0 + (q >> 1), k = j * n + i, w = (q & 1 ? tx : 1 - tx) * (q >> 1 ? ty : 1 - ty);
+    if (NAV.cost[k] === Infinity) { sx += (fx - i) * w * 2; sy += (fy - j) * w * 2; } else { navCellDir(k); sx += NAV.dx[k] * w; sy += NAV.dy[k] * w; } }
+  const L = Math.hypot(sx, sy); return L > 1e-3 ? [sx / L, sy / L] : null;
 }
-/* Tiesi matomumo linija (žingsnis 30 vnt.) */
+function navLOS(ax, ay, bx, by) { for (let t = .2; t < 1; t += .2) if (solidAt(ax + (bx - ax) * t, ay + (by - ay) * t)) return false; return true; }
 function los(x0, y0, x1, y1) { const d = Math.hypot(x1 - x0, y1 - y0), n = Math.ceil(d / 30); for (let i = 1; i < n; i++) { const t = i / n; if (solidAt(lerp(x0, x1, t), lerp(y0, y1, t))) return false; } return true; }
+/* Kelio kryptis taške (vietoj Steam roadNear): kelio asfaltas ir ilgesnė jo ašis - {d: 0, e: true, ang} arba {d: 1e9} */
+function roadNear(x, y) {
+  if (!roadAt(x, y)) return { d: 1e9 };
+  let rx = 0, ry = 0; for (const s of [-180, -100, 100, 180]) { rx += roadAt(x + s, y); ry += roadAt(x, y + s); }
+  return rx === ry ? { d: 1e9 } : { d: 0, e: true, ang: rx > ry ? 0 : Math.PI / 2 };
+}
 
 /* ---------- Piešimas: žemė, objektai (medžiai - virš mašinų), srities kraštas ---------- */
 let camX = 0, camY = 0;   // kameros kairysis viršus žaidimo pikseliais (sveiki)

@@ -2,7 +2,7 @@
 'use strict';
 const pl = { x: 0, y: 0, a: -Math.PI / 2, vx: 0, vy: 0, nitro: .5, boost: false, inv: 0, hp: 150, max: 150, L: 30, W: 13, drift: 0, spr: '', sh: '' };
 let G = null, cops = [], proj = [], haz = [], gems = [], ps = [], nums = [], zaps = [], scorch = [], shake = 0, slowmo = 0;
-const TOP = 500;   // vnt./s (prototipo pl.top 520)
+const TOP = 520;   // vnt./s (Steam Body.Top)
 
 function newRun() {
   const car = CARS.find(c => c.id === save.car) || CARS[0], cs = save.cars[car.id], up = cs.up;
@@ -12,7 +12,7 @@ function newRun() {
   const mx = Math.round((150 + car.hp + up.arm * 20));
   Object.assign(pl, { x: 0, y: 0, a: -Math.PI / 2, vx: 0, vy: 0, nitro: .5 + up.nit * .1, boost: false, inv: 1.5, hp: mx, max: mx, drift: 0,
     spr: `car_${car.id}_${cs.paint}`, sh: `car_${car.id}_sh` });
-  const r = A.spr.cars.find(c => c.id === car.id); pl.L = r.L / PPU / 2 * .92; pl.W = 12 / PPU / 2 * .9;
+  bodyInit(pl, Object.assign({ len: 52, wid: 24, top: TOP }, car.phys || {})); pl.vx = 0; pl.vy = 0; pl.revMode = false; pl.L = 26; pl.W = 12;
   const [fx, fy] = freeNear(0, 0); pl.x = fx; pl.y = fy;
 }
 /* ---------- Dydžiai su pasyvais ir garažu ---------- */
@@ -27,66 +27,80 @@ function recomputeMax() { const m = Math.round((150 + G.car.hp + G.up.arm * 20) 
 const heatIdx = () => { let h = 0; while (h + 1 < HEAT_AT.length && G.t >= HEAT_AT[h + 1]) h++; return h; };
 const heatHp = () => { const h = heatIdx(), a = HEAT_AT[h], b = HEAT_AT[h + 1] || a + 300; return lerp(HEAT_HP[h], HEAT_HP[h + 1] || HEAT_HP[h] * 1.3, clamp((G.t - a) / (b - a), 0, 1)); };
 
-/* ---------- Žaidėjas: rodai kryptį - mašina sukasi ten, dujos automatinės; driftas staigiame posūkyje pildo nitro ---------- */
+/* ---------- Žaidėjas: Steam fizika (js/vehicle.js). Klaviatūra - klasikinis valdymas (Steam): W dujos, S stabdis ir atbulinė,
+   A/D vairas, Space rankinis (driftas), Shift nitro. Pirštas / pelė - rodai kryptį: mašina sukasi ten, rodant atgal stovint - važiuoja atbulomis ---------- */
 function inputDir() {
   if (stick.on && Math.hypot(stick.dx, stick.dy) > .25) return [stick.dx, stick.dy];
   const [kx, ky] = keyDir(); if (kx || ky) return [kx, ky];
   return null;
 }
+function playerCtl() {
+  const c = { steer: 0, thr: 0, brk: 0, rev: 0, hb: false, nitro: false, burn: false, aid: 1 };
+  if (!G.started) { c.brk = 1; return c; }
+  const ca = Math.cos(pl.a), sa = Math.sin(pl.a), u = pl.vx * ca + pl.vy * sa;
+  const kU = keys.KeyW || keys.ArrowUp, kD = keys.KeyS || keys.ArrowDown, kL = keys.KeyA || keys.ArrowLeft, kR = keys.KeyD || keys.ArrowRight;
+  if (kU || kD || kL || kR || keys.Space) {
+    c.steer = (kR ? 1 : 0) - (kL ? 1 : 0); c.thr = kU ? 1 : 0; c.rev = kD ? 1 : 0; c.hb = !!keys.Space;
+    if (kU && kD) { c.burn = true; c.thr = 0; c.rev = 0; }   // burnout - saulutės vietoje
+  } else if (stick.on && Math.hypot(stick.dx, stick.dy) > .25) {
+    const mag = Math.min(1, Math.hypot(stick.dx, stick.dy)), want = Math.atan2(stick.dy, stick.dx), df = angDiff(pl.a, want);
+    if (pl.revMode) { if (Math.abs(df) < 1.4 || u > 80) pl.revMode = false; }
+    else if (Math.abs(df) > 2.5 && u < 90) pl.revMode = true;   // rodai atgal stovint - atbulinė
+    if (pl.revMode) { c.steer = clamp(-angDiff(pl.a, want + Math.PI) * 2.2, -1, 1); c.rev = Math.max(.6, mag); }
+    else {
+      c.steer = clamp(df * 2.2, -1, 1); c.thr = Math.max(.35, mag);
+      if (Math.abs(df) > 2.2 && u > 260) { c.brk = 1; c.thr = 0; }
+      else if (Math.abs(df) > 1.25 && u > 330) c.hb = true;   // staigus posūkis greitai - driftas
+    }
+  } else if (stick.on) c.brk = .6;   // pirštas ekrane, bet vietoje - stabdo
+  c.nitro = (keys.ShiftLeft || keys.ShiftRight || nitroBtn.on) && pl.nitro > .02 && u > 40 && !pl.revMode;
+  return c;
+}
 function stepPlayer(dt) {
-  const d = inputDir(); let steer = 0, thr = G.started ? 1 : 0, brk = 0;
-  if (d) {
-    const want = Math.atan2(d[1], d[0]), df = angDiff(pl.a, want); steer = clamp(df * 2.4, -1, 1);
-    const vF0 = pl.vx * Math.cos(pl.a) + pl.vy * Math.sin(pl.a); if (Math.abs(df) > 2.3 && vF0 > 220) { brk = 1; thr = .2; }
-  }
-  const nIn = keys.Space || keys.ShiftLeft || keys.ShiftRight || nitroBtn.on;
-  pl.boost = G.started && nIn && pl.nitro > .02;
+  const c = playerCtl();
+  pl.boost = c.nitro;
   if (pl.boost && !pl.wasBoost) { sfx('nitro'); G.nitroUsed = true; } pl.wasBoost = pl.boost;
-  const sp0 = Math.hypot(pl.vx, pl.vy), tr = 3.1 * clamp(sp0 / 160, .25, 1) * (pl.drift > 0 ? 1.15 : 1);
-  pl.a += steer * tr * dt;
-  const fx = Math.cos(pl.a), fy = Math.sin(pl.a), rx = -fy, ry = fx;
-  let vF = pl.vx * fx + pl.vy * fy, vR = pl.vx * rx + pl.vy * ry;
-  const top = topSpd() * surfV(pl.x, pl.y) * (pl.boost ? 1.45 : 1);
-  if (brk) vF -= 900 * dt; else vF += (top * thr - vF) * (pl.boost ? 2.6 : 1.5) * dt;
-  /* driftas: staigus posūkis greitai - mažas sukibimas (slysta), kitaip - kelias „sugaudo" šoninį greitį */
-  const drifting = Math.abs(steer) > .75 && vF > 300; pl.drift = drifting ? Math.min(1, pl.drift + dt * 3) : Math.max(0, pl.drift - dt * 2);
-  vR *= Math.exp(-(drifting ? 2.4 : 10) * dt);
-  pl.vx = fx * vF + rx * vR; pl.vy = fy * vF + ry * vR;
+  pl.top = topSpd(); const cl = clsAt(pl.x, pl.y), sv = SURF_V[Math.min(9, cl)] || 1, sg = SURF_G[Math.min(9, cl)] || 1;
+  WCV = 0; const wdv = bodyMove(pl, c, dt, sv, sg);
+  if (wdv > 60) crash(wdv);
+  const fx = Math.cos(pl.a), fy = Math.sin(pl.a), rx = -fy, ry = fx, sp = Math.hypot(pl.vx, pl.vy), u = pl.vx * fx + pl.vy * fy, vR = pl.vx * rx + pl.vy * ry;
+  const slide = Math.abs(vR) > 70 && sp > 150 || pl.burn;
   const nm = 1 + TL('nitro') * .15 + G.up.nit * .2;
-  if (pl.boost) pl.nitro = Math.max(0, pl.nitro - .3 * dt);
-  else pl.nitro = Math.min(1, pl.nitro + dt * (.035 + (drifting && Math.abs(vR) > 60 ? .22 : 0)) * nm);
-  /* judėjimas su sienomis: ašimis atskirai, atšokimas */
-  const nx = pl.x + pl.vx * dt; if (solidCar(nx, pl.y, pl.a, pl.L, pl.W)) { crash(Math.abs(pl.vx)); pl.vx *= -.25; } else pl.x = nx;
-  const ny = pl.y + pl.vy * dt; if (solidCar(pl.x, ny, pl.a, pl.L, pl.W)) { crash(Math.abs(pl.vy)); pl.vy *= -.25; } else pl.y = ny;
-  if (solidAt(pl.x, pl.y)) { const [a, b] = freeNear(pl.x, pl.y); pl.x = a; pl.y = b; }
-  const sp = Math.hypot(pl.vx, pl.vy);
+  if (pl.boost) pl.nitro = Math.max(0, pl.nitro - .34 * dt);
+  else pl.nitro = Math.min(1, pl.nitro + dt * (.03 + (slide ? .16 : 0)) * nm);   // driftas pildo nitro (Steam)
   if (sp > 120) smashProps(pl.x + fx * pl.L * .7, pl.y + fy * pl.L * .7, 26, sp);
-  /* dūmai driftuojant, nitro liepsna */
+  /* padangų dūmai slystant, kibirkštys nuo sienų, nitro liepsna */
   const bx = pl.x - fx * pl.L * .8, by = pl.y - fy * pl.L * .8;
-  if (pl.drift > .3 && Math.random() < .7) for (const s of [1, -1]) puff(bx + rx * pl.W * s, by + ry * pl.W * s, rnd(-30, 30), rnd(-30, 30), .6, 2 + Math.random() * 2, '#E8EAEE', '#B9BEC6');
+  if (slide && Math.random() < .8) for (const s of [1, -1]) puff(bx + rx * pl.W * s, by + ry * pl.W * s, rnd(-30, 30), rnd(-30, 30), .7, 3, '#E8EAEE');
+  if (WCV > 60) for (let i = 0; i < 3; i++) ps.push({ k: 'sq', x: WCX, y: WCY, vx: -WCNY * WCV * rnd(.3, 1) + WCNX * rnd(40, 120), vy: WCNX * WCV * rnd(.3, 1) + WCNY * rnd(40, 120), life: .2, max: .2, c: pick(['#FFF3B0', '#FFD23F', '#FF8A2A']), s: 1 });
   if (pl.boost) for (let i = 0; i < 2; i++) ps.push({ k: 'sq', x: bx, y: by, vx: -fx * 300 + rnd(-60, 60), vy: -fy * 300 + rnd(-60, 60), life: .18, max: .18, c: pick(['#BFF3FF', '#5AB8FF', '#FFFFFF']), s: 2 });
+  pl.drift = slide ? 1 : 0;
   engine(sp, G.started);
   return sp;
 }
-function crash(v) { if (v < 180) return; shake = Math.max(shake, Math.min(.35, v / 1500)); sfx('crash'); for (let i = 0; i < 6; i++) ps.push({ k: 'sq', x: pl.x, y: pl.y, vx: rnd(-200, 200), vy: rnd(-200, 200), life: .25, max: .25, c: pick(['#FFF3B0', '#FFD23F', '#FF8A2A']), s: 1 }); }
+function crash(dv) { shake = Math.max(shake, Math.min(.35, dv / 900)); sfx('crash'); }
 
-/* ---------- Policija ---------- */
+/* ---------- Policija: kėbulai su Steam fizika, smegenys - js/police.js ---------- */
 function spawnCop(type, boss) {
   const T = boss ? null : COP[type], vr = Math.hypot(WW, WH) / 2 / PPU;
   for (let i = 0; i < 14; i++) {
-    const a = pl.a + rnd(-1.6, 1.6) + (Math.random() < .3 ? Math.PI : 0), d = vr + rnd(60, 260), x = pl.x + Math.cos(a) * d, y = pl.y + Math.sin(a) * d;
-    if (!ready(x, y) || clsAt(x, y) > 6 || solidCar(x, y, a + Math.PI, 40, 18)) continue;
+    const a = pl.a + rnd(-1.6, 1.6) + (Math.random() < .3 ? Math.PI : 0), d = vr + rnd(60, 260); let x = pl.x + Math.cos(a) * d, y = pl.y + Math.sin(a) * d;
+    if (!ready(x, y) || clsAt(x, y) > 6) continue;
+    let h = Math.atan2(pl.y - y, pl.x - x); const q = roadNear(x, y);   // ant kelio - kelio kryptimi į žaidėjo pusę
+    if (q.d <= 0) { h = q.ang; if (Math.cos(h) * (pl.x - x) + Math.sin(h) * (pl.y - y) < 0) h += Math.PI; }
     const hs = heatHp(); let c;
-    if (boss) c = { boss: boss.k, x, y, a: a + Math.PI, v: 0, hp: boss.hp * (1 + G.t / 900), r: boss.k === 'heli' ? 40 : 46, dmg: boss.k === 'heli' ? 0 : 35, xp: boss.xp, coin: boss.coin, spd: boss.k === 'heli' ? 380 : 210, fireT: 3, spr: '' };
-    else c = { type, x, y, a: a + Math.PI, v: T.spd * .6, hp: T.hp * hs, r: T.r, dmg: T.dmg, xp: T.xp, spd: T.spd * (1 + heatIdx() * .03) * (G.t < 120 ? .88 : 1), spr: T.spr };
-    c.max = c.hp; c.flash = 0; c.dead = false; c.stuck = 0; c.slow = 0; c.hitCd = 0; c.sirT = Math.random();
+    if (boss) c = { boss: boss.k, x, y, a: h, hp: boss.hp * (1 + G.t / 900), r: boss.k === 'heli' ? 40 : 46, dmg: boss.k === 'heli' ? 0 : 35, xp: boss.xp, coin: boss.coin, fireT: 3, spr: '' };
+    else c = { type, x, y, a: h, hp: T.hp * hs, r: T.r, dmg: T.dmg, xp: T.xp, spr: T.spr };
+    const top = boss ? (boss.k === 'heli' ? 380 : 210) : T.spd * (1 + heatIdx() * .05) * (G.t < 120 ? .9 : 1);
+    if (!copAir(c)) { bodyInit(c, Object.assign({}, VCOP[boss ? 'tank' : type] || VCOP.patrol, { top })); if (solidCar(x, y, h, c.len / 2, c.wid / 2)) continue; c.vx = Math.cos(h) * top * .6; c.vy = Math.sin(h) * top * .6; }
+    c.top = top; c.isCop = true; c.max = c.hp; c.flash = 0; c.dead = false; c.sirT = Math.random();
     cops.push(c); return c;
   }
   return null;
 }
 function spawner(dt) {
   const t = G.t, alive = cops.reduce((n, c) => n + (c.dead || c.boss ? 0 : 1), 0);
-  const want = Math.min(55, t < 25 ? 3 : t < 240 ? 4 + Math.floor(t / 15) : 20 + Math.floor((t - 240) / 8));
+  const want = Math.min(55, t < 25 ? 3 : t < 240 ? 4 + Math.floor(t / 15) : 20 + Math.floor((t - 240) / 6));
   G.spawnT -= dt; if (G.spawnT > 0 || alive >= want) return;
   G.spawnT = Math.max(.3, 1.3 - t / 320);
   const pool = []; for (const k in COP) if (t >= COP[k].at) for (let i = 0; i < ({ patrol: 5, inter: 3, suv: 2, van: 1, rhino: 1 })[k]; i++) pool.push(k);
@@ -98,52 +112,47 @@ function spawner(dt) {
   if (t >= at && spawnCop(null, B)) { G.bossI++; G.bossWarn = 0; }
 }
 function stepCops(dt) {
-  const tx = pl.x + pl.vx * .35, ty = pl.y + pl.vy * .35;
+  const heat = heatIdx() + 1;
+  squadStep(cops, pl, heat, dt); sepStep(cops);
   for (const c of cops) {
-    c.flash = Math.max(0, c.flash - dt); c.hitCd = Math.max(0, c.hitCd - dt); c.slow = Math.max(0, c.slow - dt);
+    c.flash = Math.max(0, c.flash - dt);
     if (c.dead) continue;
-    const dx = tx - c.x, dy = ty - c.y, dist = Math.hypot(pl.x - c.x, pl.y - c.y);
-    if (c.boss === 'heli') { stepHeli(c, dt, dist); continue; }
-    let want;
-    if (dist < 420 && los(c.x, c.y, pl.x, pl.y)) want = Math.atan2(dy, dx);
-    else { want = navDir(c.x, c.y); if (want === null) want = Math.atan2(dy, dx); }
-    const df = angDiff(c.a, want); c.a += clamp(df, -3.4 * dt, 3.4 * dt);
-    const vmax = c.spd * (c.slow > 0 ? .45 : 1) * (Math.abs(df) > 1.2 ? .55 : 1) * surfV(c.x, c.y);
-    c.v += (vmax - c.v) * 2 * dt;
-    const vx = Math.cos(c.a) * c.v, vy = Math.sin(c.a) * c.v; let moved = false;
-    const nx = c.x + vx * dt; if (!solidAt(nx, c.y) && !solidAt(nx + Math.cos(c.a) * c.r, c.y)) { c.x = nx; moved = true; }
-    const ny = c.y + vy * dt; if (!solidAt(c.x, ny) && !solidAt(c.x, ny + Math.sin(c.a) * c.r)) { c.y = ny; moved = true; }
-    if (!moved) { c.v *= .3; c.stuck += dt; } else c.stuck = Math.max(0, c.stuck - dt);
-    if (c.stuck > 1.6) { c.a += Math.PI * rnd(.5, 1); c.stuck = 0; }
-    if (dist > 2400 && !c.boss) { c.dead = true; c.deadT = 0; c.gone = true; }   // per toli - perkeliamas (gims iš naujo)
+    const dist = Math.hypot(pl.x - c.x, pl.y - c.y);
+    if (copAir(c)) { stepHeli(c, dt, dist); continue; }
+    const ctl = copBrain(c, pl, dt), cl = clsAt(c.x, c.y);
+    bodyMove(c, ctl, dt, SURF_V[Math.min(9, cl)] || 1, SURF_G[Math.min(9, cl)] || 1);
+    if (dist > 2400 && !c.boss) { c.dead = true; c.deadT = 0; c.gone = true; }   // per toli - dingsta (gims iš naujo arčiau)
     if (c.boss === 'tank') { c.fireT -= dt; if (c.fireT <= 0 && dist < 700) { c.fireT = 3.2; bombAt(pl.x + pl.vx * .9, pl.y + pl.vy * .9, 1.3, 95, 30); } }
-    /* susidūrimas su žaidėju: abu atstumiami; žaidėjas gauna žalos, policija - taranavimo žalą */
-    const rr = c.r + 22;
-    if (dist < rr) {
-      const nx2 = (c.x - pl.x) / (dist || 1), ny2 = (c.y - pl.y) / (dist || 1), push = (rr - dist);
-      c.x += nx2 * push * .7; c.y += ny2 * push * .7; pl.x -= nx2 * push * .3; pl.y -= ny2 * push * .3;
-      const rel = Math.max(0, (pl.vx - Math.cos(c.a) * c.v) * nx2 + (pl.vy - Math.sin(c.a) * c.v) * ny2);
-      if (c.hitCd <= 0) { c.hitCd = .3; hurtCop(c, (8 + rel * .06) * (pl.boost ? 3 : 1) * dmgMul()); sfx('crash'); shake = Math.max(shake, .12); }
-      if (pl.inv <= 0 && c.dmg > 0 && !G.over) hurtPlayer(c.dmg * (1 + heatIdx() * .15));
-      c.v *= .4;
-    }
   }
-  /* atstumas tarp policijos mašinų */
-  for (let i = 0; i < cops.length; i++) { const a = cops[i]; if (a.dead || a.boss === 'heli') continue;
-    for (let j = i + 1; j < cops.length; j++) { const b = cops[j]; if (b.dead || b.boss === 'heli') continue;
-      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), m = a.r + b.r; if (d >= m || d === 0) continue;
-      const p = (m - d) / 2 / d; a.x -= dx * p; a.y -= dy * p; b.x += dx * p; b.y += dy * p; } }
+  /* susidūrimai: žaidėjas, policija ir civilinės mašinos - Steam kapsulių impulsai pagal masę */
+  const list = [pl]; for (const c of cops) if (!c.dead && !copAir(c)) list.push(c); for (const v of civs) if (!v.gone) list.push(v);
+  if (!G.over) bodyPairsGrid(list, carHit);
   cops = cops.filter(c => !(c.dead && c.deadT <= 0));
+}
+/* Smūgis tarp dviejų kūnų (dv - greičio pokytis): žala pagal smūgio stiprumą (Steam impactDmg); tvirtas taranas - policija išjungiama */
+function carHit(a, b, dva, dvb) {
+  if (a !== pl && b === pl) { carHit(b, a, dvb, dva); return; }
+  if (a === pl) {
+    if (b.isCop) {
+      const rel = Math.max(dva, dvb); if (rel > 40) { sfx('crash'); shake = Math.max(shake, Math.min(.3, rel / 900)); }
+      const cd = (impactDmg(28, dvb) + (rel > 8 ? 4 : 0)) * (pl.boost ? 2 : 1) * dmgMul();
+      if (dvb > VP.TAKEDOWN && !b.boss) hurtCop(b, b.hp + 1); else if (cd > 0) hurtCop(b, cd);   // tvirtas taranas - išjungta iš karto
+      if (pl.inv <= 0 && b.dmg > 0) { const pd = Math.max(impactDmg(b.dmg, dva), rel > 8 ? b.dmg * .6 : 0); if (pd > 0) hurtPlayer(pd * (1 + heatIdx() * .15)); }
+    } else if (b.isCiv) civHit(b, dvb);
+    return;
+  }
+  if (a.isCop && b.isCop) { const dv = Math.max(dva, dvb); if (dv > VP.COPCOP_MIN) { hurtCop(a, a.max * VP.COPCOP_K * Math.min(3, dva / VP.DMG_REF)); hurtCop(b, b.max * VP.COPCOP_K * Math.min(3, dvb / VP.DMG_REF)); } return; }
+  if (a.isCiv) civHit(a, dva); if (b.isCiv) civHit(b, dvb);
 }
 function stepHeli(c, dt, dist) {   // sraigtasparnis: skrenda virš namų, sukasi aplink ir meta bombas
   c.orb = (c.orb || 0) + dt * .45; const ox = pl.x + Math.cos(c.orb) * 260, oy = pl.y + Math.sin(c.orb) * 260;
   const want = Math.atan2(oy - c.y, ox - c.x); c.a += clamp(angDiff(c.a, want), -2 * dt, 2 * dt);
-  const v = Math.min(c.spd, Math.hypot(ox - c.x, oy - c.y) * 2); c.x += Math.cos(want) * v * dt; c.y += Math.sin(want) * v * dt;
+  const v = Math.min(c.top, Math.hypot(ox - c.x, oy - c.y) * 2); c.x += Math.cos(want) * v * dt; c.y += Math.sin(want) * v * dt;
   c.fireT -= dt; if (c.fireT <= 0 && dist < 650) { c.fireT = 2.4; bombAt(pl.x + pl.vx * .8 + rnd(-40, 40), pl.y + pl.vy * .8 + rnd(-40, 40), 1.2, 85, 22); }
 }
 function bombAt(x, y, t, r, dmg) { haz.push({ k: 'bomb', x, y, t, max: t, r, dmg }); }
 function hurtPlayer(d) {
-  pl.hp -= Math.max(1, d * (G.t < 240 ? .45 : Math.min(1, .45 + (G.t - 240) / 240 * .55)) - TL('armor')); pl.inv = .7; shake = Math.max(shake, .25); sfx('hit'); G.hurtT = .3;   // iki 4 min. - 45 % žalos, iki 8 min. tolygiai iki 100 % (Poki: naujokas turi išbūti 3+ min.)
+  pl.hp -= Math.max(1, d * (G.t < 180 ? .6 : Math.min(1.2, .6 + (G.t - 180) / 300 * .6)) - TL('armor')); pl.inv = .7; shake = Math.max(shake, .25); sfx('hit'); G.hurtT = .3;   // iki 3 min. - 60 % žalos, iki 8 min. tolygiai iki 120 % (Poki: naujokas turi išbūti 3+ min.)
   if (pl.hp <= 0) { pl.hp = 0; die(); }
 }
 function hurtCop(c, d) {
@@ -154,7 +163,7 @@ function killCop(c) {
   c.dead = true; c.deadT = 0;   // kaip Steam versijoje (Run.Cops KillCop): mašina sprogsta ir dingsta, lieka apdegusi dėmė
   G.kills++; carBlast(c.x, c.y, !!c.boss, c.type === 'van' ? ['#1F2A44', '#3A3D44', '#E0443A'] : ['#F5F5F0', '#1E1F24', '#3D7BFF', '#E0443A'], pl.vx * .3, pl.vy * .3);
   if (c.xp > 0) dropXp(c.x, c.y, c.xp);
-  const cc = c.boss ? c.coin : Math.random() < .2 + (c.xp >= 3 ? .25 : 0) ? 1 + (c.xp >= 3 ? 1 : 0) : 0;
+  const cc = c.boss ? c.coin : Math.random() < .12 + (c.xp >= 3 ? .2 : 0) ? 1 + (c.xp >= 3 ? 1 : 0) : 0;
   for (let i = 0; i < cc; i++) gems.push({ k: 'coin', x: c.x + rnd(-30, 30) * (c.boss ? 3 : 1), y: c.y + rnd(-30, 30) * (c.boss ? 3 : 1), v: 1 });
   const r = Math.random(); if (!c.boss && r < .025) gems.push({ k: 'heal', x: c.x, y: c.y, v: 1 }); else if (!c.boss && r < .035) gems.push({ k: 'magnet', x: c.x, y: c.y, v: 1 });
   if (c.boss) { banner(L('bossDown'), '#F2C230', 2.5); pl.hp = Math.min(pl.max, pl.hp + pl.max * .5); G.pend++; slowmo = .8; }
@@ -222,7 +231,7 @@ function stepWeapons(dt) {
     if (h.k === 'bomb') { h.t -= dt; if (h.t <= 0) { h.done = 1; boom(h.x, h.y, 1.4); sfx('boom'); shake = Math.max(shake, .3); if (Math.hypot(pl.x - h.x, pl.y - h.y) < h.r + 18 && pl.inv <= 0 && !G.over) hurtPlayer(h.dmg); } continue; }
     h.life -= dt; if (h.life <= 0) { h.done = 1; continue; }
     if (h.k === 'mine') { h.arm -= dt; if (h.arm > 0) continue; if (nearestCop(h.x, h.y, 50)) { h.done = 1; explode(h.x, h.y, h.r, h.dmg); } }
-    else if (h.k === 'spike') for (const c of cops) { if (c.dead || c.boss === 'heli' || h.hit.has(c)) continue; if ((c.x - h.x) ** 2 + (c.y - h.y) ** 2 < (c.r + h.r) ** 2) { h.hit.add(c); c.slow = 1.5; hurtCop(c, h.dmg); } }
+    else if (h.k === 'spike') for (const c of cops) { if (c.dead || c.boss === 'heli' || h.hit.has(c)) continue; if ((c.x - h.x) ** 2 + (c.y - h.y) ** 2 < (c.r + h.r) ** 2) { h.hit.add(c); if (c.pm) { c.pm = .45; c.pmT = 1.5; c.gm = .7; c.gmT = 1.5; } hurtCop(c, h.dmg); } }
   }
   haz = haz.filter(h => !h.done);
 }
@@ -295,13 +304,13 @@ function banner(s, col, t) { G.banner = { s, col, t, max: t }; }
 function stepRun(dt) {
   if (G.over) { G.over += dt; stepCops(dt); stepFx(dt); return; }
   if (G.started) G.t += dt;
-  if (G.started && pl.hp < pl.max) pl.hp = Math.min(pl.max, pl.hp + dt * .6);   // lėtas savaiminis taisymas (vaikams - ne bausmė už kiekvieną klaidą)
+  if (G.started && pl.hp < pl.max) pl.hp = Math.min(pl.max, pl.hp + dt * .3);   // lėtas savaiminis taisymas (vaikams - ne bausmė už kiekvieną klaidą)
   pl.inv = Math.max(0, pl.inv - dt); G.hurtT = Math.max(0, (G.hurtT || 0) - dt);
   if (G.banner && (G.banner.t -= dt) <= 0) G.banner = null;
   ensureChunks(pl.x + pl.vx * .5, pl.y + pl.vy * .5, 2); ensureChunks(pl.x, pl.y, 1);
   stepPlayer(dt);
   if (!G.started) return;
-  if ((NAV.t -= dt) <= 0) { NAV.t = .35; navUpdate(pl.x, pl.y); }
+  if ((NAV.t -= dt) <= 0) { NAV.t = .3; navBuild(pl.x, pl.y); }
   spawner(dt); stepCops(dt); stepCivs(dt); stepWeapons(dt); stepGems(dt); stepFx(dt);
   if (G.pend > 0 && !G.cards) { G.cards = makeCards(); sfx('lvl'); }
 }

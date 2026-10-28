@@ -89,6 +89,12 @@ function clapper(x, y, s) {
   s = s || 1; x += UIX; y += UIY; const R = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x + a * s, y + b * s, w * s, h * s); };
   R(0, 4, 14, 9, '#16181D'); R(1, 5, 12, 7, '#F4F1E8'); R(0, 0, 14, 4, '#16181D'); for (let i = 0; i < 3; i++) R(1 + i * 5, 1, 3, 2, '#F4F1E8'); R(3, 7, 8, 1, '#16181D'); R(3, 9, 6, 1, '#16181D');
 }
+/* Spyna (užrakinta mašina): 24×26, piešiama kodu */
+function padlock(x, y) {
+  const R = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(UIX + x + a, UIY + y + b, w, h); };
+  R(4, 0, 16, 4, '#16181D'); R(2, 2, 4, 12, '#16181D'); R(18, 2, 4, 12, '#16181D'); R(6, 2, 12, 2, '#C9D0D8'); R(4, 4, 2, 9, '#C9D0D8'); R(18, 4, 2, 9, '#C9D0D8');
+  R(0, 11, 24, 15, '#16181D'); R(2, 13, 20, 11, '#F2C230'); R(2, 13, 20, 2, '#FFE680'); R(10, 16, 4, 6, '#16181D'); R(11, 21, 2, 2, '#8A5A10');
+}
 function coinIc(x, y) { x += UIX; y += UIY; ctx.fillStyle = '#8A5A10'; ctx.fillRect(x + 1, y, 8, 10); ctx.fillRect(x, y + 1, 10, 8); ctx.fillStyle = '#F2C230'; ctx.fillRect(x + 1, y + 1, 8, 8); ctx.fillStyle = '#FFE680'; ctx.fillRect(x + 2, y + 2, 2, 5); ctx.fillStyle = '#C8901A'; ctx.fillRect(x + 4, y + 3, 2, 4); }
 function bar(x, y, w, h, k, col, bg) { x += UIX; y += UIY; ctx.fillStyle = '#0E1014'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2); ctx.fillStyle = bg || '#3A3E46'; ctx.fillRect(x, y, w, h); ctx.fillStyle = col; ctx.fillRect(x, y, Math.round(w * clamp(k, 0, 1)), h); ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(x, y, Math.round(w * clamp(k, 0, 1)), 1); }
 function dim(a) { ctx.fillStyle = `rgba(10,12,16,${a})`; ctx.fillRect(0, 0, LW, LH); }
@@ -121,7 +127,7 @@ function drawHud(t) {
   ctx.fillStyle = '#0E1014'; circlePx(nx + 1, ny + 2, R + 1); ctx.fillStyle = pl.boost ? '#5AB8FF' : '#2A2E37'; circlePx(nx, ny, R);
   ctx.fillStyle = pl.boost ? '#8FD0FF' : '#1A4E8C'; for (let y = -R + 1; y <= R - 1; y++) { if ((R - y) / (2 * R) > full) continue; const w = Math.floor(Math.sqrt(R * R - y * y)); ctx.fillRect(nx - w, ny + y, w * 2 + 1, 1); }
   ringPx(nx, ny, R, full > .98 && Math.floor(t * 4) % 2 ? '#FFFFFF' : '#5AB8FF');
-  icon('nitro', nx - 16, ny - 17, 1); if (!isTouch) T('SPACE', nx, ny + R + 4, 1, COL.dim, .5);
+  icon('nitro', nx - 16, ny - 17, 1); if (!isTouch) T('SHIFT', nx, ny + R + 4, 1, COL.dim, .5);
   /* pamoka vaizdais (pirmas runas): pilnas nitro - pirštas spaudžia mygtuką */
   if (G.tut && !G.nitroUsed && pl.nitro > .97 && G.t > 6) { const b = Math.abs(Math.sin(t * 5)) * 6; hand(nx - 30 + b, ny - 34 + b); ringPx(nx, ny, R + 4 + Math.floor(t * 8) % 4, '#FFFFFF'); }
   /* vairasvirtė */
@@ -193,7 +199,7 @@ function toResults() { state = 'results'; finishRun(); }
 let lastRun = null;
 function finishRun() {
   Poki.stop(); engine(0, false);
-  const bonus = Math.floor(G.t / 10), total = G.coins + bonus;
+  const bonus = Math.floor(G.t / 5), total = G.coins + bonus;
   lastRun = { t: G.t, kills: G.kills, coins: G.coins, bonus, total, best: G.t > save.best };
   save.coins += total; save.best = Math.max(save.best, G.t); save.runs++; persist(); doubled = false; resT = 0;
 }
@@ -225,6 +231,7 @@ function drawGarage(t) {
   const r = A.spr.spr[`car_${car.id}_${cs.paint}`], sh = A.spr.spr[`car_${car.id}_sh`];
   ctx.drawImage(A.sprImg, sh[0], sh[1], sh[2], sh[3], UIX + 110 - sh[2] * 1.5 + 6, UIY + 102 - sh[3] * 1.5 + 6, sh[2] * 3, sh[3] * 3);
   ctx.drawImage(own ? A.sprImg : A.sprK, r[0], r[1], r[2], r[3], UIX + 110 - r[2] * 1.5, UIY + 102 - r[3] * 1.5, r[2] * 3, r[3] * 3);
+  if (!own) { padlock(110 - 12, 84); coinIc(110 - textW(String(car.price), 2) / 2 - 8, 126); T(car.price, 110 + 7, 126, 2, COL.acc2, .5); }
   btn(14, 88, 18, 28, '<', COL.panel2, () => { garageSel = (garageSel + CARS.length - 1) % CARS.length; });
   btn(188, 88, 18, 28, '>', COL.panel2, () => { garageSel = (garageSel + 1) % CARS.length; });
   T(car.n, 110, 46, 2, '#fff', .5);
@@ -235,11 +242,12 @@ function drawGarage(t) {
   /* spalvos */
   T(L('paint'), 12, 198, 1, COL.dim);
   Object.keys(PAINTS).forEach((p, i) => {
-    const x = 12 + (i % 6) * 33, y = 210 + Math.floor(i / 6) * 28, has = cs.paints.includes(p), sel = cs.paint === p;
+    const x = 12 + (i % 6) * 33, y = 210 + Math.floor(i / 6) * 28, has = save.paints.includes(p), sel = own && cs.paint === p;   // spalvos - bendros visoms mašinoms
     panel(x, y, 30, 24, sel ? '#fff' : '#1A1D23', sel ? '#fff' : '#0E1014');
     ctx.fillStyle = PAINTS[p]; ctx.fillRect(UIX + x + 3, UIY + y + 3, 24, 18); ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillRect(UIX + x + 3, UIY + y + 3, 24, 2);
-    if (!has) { ctx.fillStyle = 'rgba(14,16,20,.6)'; ctx.fillRect(UIX + x + 3, UIY + y + 3, 24, 18); T(PAINT_PRICE, x + 15, y + 9, 1, COL.acc2, .5); }
-    if (own) button(x, y, 30, 24, () => { if (has) { cs.paint = p; persist(); } else if (save.coins >= PAINT_PRICE) { save.coins -= PAINT_PRICE; cs.paints.push(p); cs.paint = p; persist(); sfx('buy'); } else note(L('notEnough')); });
+    if (!own) { ctx.fillStyle = 'rgba(14,16,20,.7)'; ctx.fillRect(UIX + x + 3, UIY + y + 3, 24, 18); }   // užrakinta mašina - spalvų nesirinksi
+    else if (!has) { ctx.fillStyle = 'rgba(14,16,20,.6)'; ctx.fillRect(UIX + x + 3, UIY + y + 3, 24, 18); T(PAINT_PRICE, x + 15, y + 9, 1, COL.acc2, .5); }
+    if (own) button(x, y, 30, 24, () => { if (has) { cs.paint = p; persist(); } else if (save.coins >= PAINT_PRICE) { save.coins -= PAINT_PRICE; save.paints.push(p); cs.paint = p; persist(); sfx('buy'); } else note(L('notEnough')); });
   });
   /* tobulinimai */
   panel(222, 40, 250, 168);
@@ -250,7 +258,7 @@ function drawGarage(t) {
     if (lv >= UPG_MAX) T(L('max'), 437, y + 6, 2, COL.acc2, .5);
     else btn(408, y, 58, 24, cost, save.coins >= cost ? '#3A6F3F' : COL.panel2, () => { if (save.coins >= cost) { save.coins -= cost; cs.up[u.k]++; persist(); sfx('buy'); } else note(L('notEnough')); }, { sc: 1, coin: true, tc: save.coins >= cost ? '#fff' : COL.dim });
   });
-  else { T(L('locked'), 347, 80, fitSc(L('locked'), 240, 3), COL.dim, .5); btn(287, 120, 120, 34, car.price, save.coins >= car.price ? COL.acc : COL.panel2, () => { if (save.coins >= car.price) { save.coins -= car.price; cs.own = true; persist(); sfx('buy'); } else note(L('notEnough')); }, { coin: true }); }
+  else { T(L('locked'), 347, 80, fitSc(L('locked'), 240, 3), COL.dim, .5); btn(287, 120, 120, 34, car.price, save.coins >= car.price ? COL.acc : COL.panel2, () => { if (save.coins >= car.price) { save.coins -= car.price; cs.own = true; if (!save.paints.includes(car.paint)) save.paints.push(car.paint); persist(); sfx('buy'); } else note(L('notEnough')); }, { coin: true }); }
   if (save.best) T(L('best') + ' ' + fmtTime(save.best), 347, 214, 1, COL.dim, .5);
   btn(300, 226, 172, 38, L('drive'), own ? COL.acc : COL.panel2, startRun, { dis: !own });
   if (toast) { toast.t -= 1 / 60; T(toast.s, 240, 186, fitSc(toast.s, 460, 2), COL.red, .5); if (toast.t <= 0) toast = null; }

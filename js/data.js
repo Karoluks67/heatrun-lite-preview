@@ -2,14 +2,14 @@
 'use strict';
 const PPU = 20 / 44;   // žaidimo pikseliai vienam pasaulio vienetui (World.PX_PER_UNIT)
 
-/* Mašinos: sprite'ai - CarArt (dabartinė versija), savybės - DIECAST mod; ginklas - pradinis Lite ginklas */
+/* Mašinos: sprite'ai - CarArt (dabartinė versija), savybės - DIECAST mod; ginklas - pradinis Lite ginklas; phys - masė, sukibimas, įsibėgėjimas (Steam VCAR) */
 const CARS = [
-  { id: 'rotora', n: 'Rotora 7', w: 'turret', price: 0, paint: 'orange', hp: 0, spd: 0 },
-  { id: 'bambino', n: 'Kosoku EG', w: 'mines', price: 400, paint: 'yellow', hp: 0, spd: .03 },
-  { id: 'stallion', n: 'Stallion GT', w: 'spikes', price: 800, paint: 'red', hp: 20, spd: .02 },
-  { id: 'sora', n: 'Sora Mk4', w: 'orbit', price: 1300, paint: 'blue', hp: 0, spd: .05 },
-  { id: 'bison', n: 'Vandal Brute', w: 'shotgun', price: 2000, paint: 'black', hp: 60, spd: -.06 },
-  { id: 'arrow', n: 'Kaze GT-34', w: 'rockets', price: 3000, paint: 'white', hp: -20, spd: .12 },
+  { id: 'rotora', n: 'Rotora 7', w: 'turret', price: 0, paint: 'orange', hp: 0, spd: 0, phys: { m: .95, grip: 1.05 } },
+  { id: 'bambino', n: 'Kosoku EG', w: 'mines', price: 400, paint: 'yellow', hp: 0, spd: .03, phys: { m: .85, grip: 1.1, pw: 1.05 } },
+  { id: 'stallion', n: 'Stallion GT', w: 'spikes', price: 800, paint: 'red', hp: 20, spd: .02, phys: { m: 1.1, pw: 1.1 } },
+  { id: 'sora', n: 'Sora Mk4', w: 'orbit', price: 1300, paint: 'blue', hp: 0, spd: .05, phys: { m: 1, grip: 1.1, pw: 1.1 } },
+  { id: 'bison', n: 'Vandal Brute', w: 'shotgun', price: 2000, paint: 'black', hp: 60, spd: -.06, phys: { m: 1.45, grip: .95, pw: 1.05 } },
+  { id: 'arrow', n: 'Kaze GT-34', w: 'rockets', price: 3000, paint: 'white', hp: -20, spd: .12, phys: { m: .8, grip: 1.1 } },
 ];
 const PAINTS = { yellow: '#F2C230', red: '#D93B30', blue: '#2F6FD6', green: '#2E9E5B', orange: '#F07C2A', white: '#F5F5F0', purple: '#8E4FD1', black: '#2A2D34', pink: '#F27BB4', cyan: '#35D0D6', lime: '#9BE34A', chrome: '#C9D0D8' };
 const PAINT_PRICE = 60;
@@ -45,13 +45,13 @@ const TOME = {
 };
 const T_MAX = 5, T_SLOTS = 4;
 
-/* Policija (COP): hp, žala, xp, spindulys; spd - greitis (vnt./s), at - nuo kurios sekundės atsiranda */
+/* Policija (COP): hp, žala, xp, spindulys; spd - didžiausias greitis (vnt./s; žaidėjas 520, su nitro ~760), at - nuo kurios sekundės atsiranda */
 const COP = {
-  patrol: { spr: 'cop_patrol', hp: 24, dmg: 6, xp: 1, r: 22, spd: 400, at: 0 },
-  inter: { spr: 'cop_inter', hp: 18, dmg: 6, xp: 2, r: 22, spd: 470, at: 60 },
-  suv: { spr: 'cop_suv', hp: 70, dmg: 11, xp: 3, r: 26, spd: 380, at: 140 },
-  van: { spr: 'cop_van', hp: 170, dmg: 16, xp: 4, r: 28, spd: 330, at: 230 },
-  rhino: { spr: 'cop_rhino', hp: 120, dmg: 20, xp: 2, r: 28, spd: 420, at: 330 },
+  patrol: { spr: 'cop_patrol', hp: 24, dmg: 6, xp: 1, r: 22, spd: 470, at: 0 },
+  inter: { spr: 'cop_inter', hp: 18, dmg: 6, xp: 2, r: 22, spd: 560, at: 60 },
+  suv: { spr: 'cop_suv', hp: 70, dmg: 11, xp: 3, r: 26, spd: 440, at: 140 },
+  van: { spr: 'cop_van', hp: 170, dmg: 16, xp: 4, r: 28, spd: 390, at: 230 },
+  rhino: { spr: 'cop_rhino', hp: 120, dmg: 20, xp: 2, r: 28, spd: 480, at: 330 },
 };
 /* Heat (HD): HP daugiklis pagal laiką; Lite - ~1,3 karto lėtesnė kreivė, kad naujokas išbūtų 3+ min. */
 const HEAT_AT = [0, 90, 220, 380, 560, 770, 1000, 1260, 1550, 1860], HEAT_HP = [1, 1.3, 1.7, 2.2, 2.9, 3.8, 5, 6.5, 8.5, 11];

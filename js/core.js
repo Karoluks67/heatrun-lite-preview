@@ -195,6 +195,9 @@ function loadSave() {
   const d = { v: 1, coins: 0, car: 'rotora', cars: {}, best: 0, runs: 0, muted: false };
   save = Object.assign(d, s || {});
   for (const c of CARS) if (!save.cars[c.id]) save.cars[c.id] = { own: c.price === 0, up: { eng: 0, arm: 0, mag: 0, nit: 0, wpn: 0 }, paint: c.paint, paints: [c.paint] };
+  /* spalvos bendros visoms mašinoms: nupirkta kartą - tinka visoms (seni įrašai - sujungiami) */
+  if (!Array.isArray(save.paints)) { save.paints = []; for (const c of CARS) { const cs = save.cars[c.id]; if (cs.own) for (const p of cs.paints || [cs.paint]) if (!save.paints.includes(p)) save.paints.push(p); } }
+  for (const c of CARS) { const cs = save.cars[c.id]; if (cs.own && !save.paints.includes(c.paint)) save.paints.push(c.paint); }
   muted = !!save.muted;
 }
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (_) { } }
