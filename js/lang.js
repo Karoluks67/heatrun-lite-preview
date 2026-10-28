@@ -1,0 +1,136 @@
+/* lang: Lite tekstai 10 kalbų (EN būtina Poki; kitos - didžiausios Poki rinkos). Raktai: w_ ginklai, t_ pasyvai, u_/ud_ garažo tobulinimai.
+   Tekstas piešiamas didžiosiomis raidėmis Steam versijos šriftu; raidės be šrifto (pvz. TR İ Ş Ğ) - per NFD į bazinę raidę (core.js text). */
+'use strict';
+const LANGS = {
+  en: {
+    lang: 'ENGLISH', lv: 'LV', chopper: 'CHOPPER', tank: 'TANK', drag: 'DRAG TO DRIVE', keys: 'WASD / ARROWS TO DRIVE', escape: 'ESCAPE THE POLICE',
+    levelup: 'LEVEL UP!', new: 'NEW!', repair: 'REPAIR', coins: 'COINS', paused: 'PAUSED', resume: 'RESUME', soundOn: 'SOUND: ON', soundOff: 'SOUND: OFF',
+    endRun: 'END RUN', wrecked: 'WRECKED!', keepDriving: 'KEEP DRIVING?', revive: 'REVIVE', noThanks: 'NO THANKS', newBest: 'NEW BEST!', runOver: 'RUN OVER',
+    time: 'TIME', cops: 'COPS', timeBonus: 'TIME BONUS', x2: 'X2 COINS', garage: 'GARAGE', paint: 'PAINT', notEnough: 'NOT ENOUGH COINS', max: 'MAX',
+    locked: 'LOCKED', best: 'BEST', drive: 'DRIVE', chopperIn: 'CHOPPER INCOMING!', tankIn: 'TANK INCOMING!', bossDown: 'BOSS DOWN!', speed: '% SPEED', hp: 'HP',
+    rotate: 'ROTATE YOUR PHONE',
+    w_turret: 'ROOF GUN', w_orbit: 'DRONES', w_mines: 'MINES', w_rockets: 'ROCKETS', w_tesla: 'TESLA', w_shotgun: 'SHOTGUN', w_spikes: 'SPIKES', w_laser: 'LASER',
+    t_engine: 'ENGINE', t_armor: 'ARMOR', t_magnet: 'MAGNET', t_caliber: 'POWER', t_cool: 'COOLING', t_hp: 'CHASSIS', t_nitro: 'NITRO', t_area: 'AREA', t_amount: 'EXTRA',
+    u_eng: 'ENGINE', u_arm: 'ARMOR', u_mag: 'MAGNET', u_nit: 'NITRO', u_wpn: 'WEAPON',
+    ud_eng: '+5% SPEED', ud_arm: '+20 HEALTH', ud_mag: '+25% PICKUP RANGE', ud_nit: '+20% NITRO', ud_wpn: '+1 START LEVEL',
+  },
+  lt: {
+    lang: 'LIETUVIŲ', lv: 'LYG', chopper: 'SRAIGTASPARNIS', tank: 'TANKAS', drag: 'TEMPK PIRŠTU', keys: 'WASD / RODYKLĖS', escape: 'PABĖK NUO POLICIJOS',
+    levelup: 'NAUJAS LYGIS!', new: 'NAUJA!', repair: 'TAISYMAS', coins: 'MONETOS', paused: 'PAUZĖ', resume: 'TĘSTI', soundOn: 'GARSAS: ĮJ.', soundOff: 'GARSAS: IŠJ.',
+    endRun: 'BAIGTI', wrecked: 'SUDAUŽYTA!', keepDriving: 'VAŽIUOTI TOLIAU?', revive: 'ATGAIVINTI', noThanks: 'NE, AČIŪ', newBest: 'REKORDAS!', runOver: 'PABAIGA',
+    time: 'LAIKAS', cops: 'POLICIJA', timeBonus: 'UŽ LAIKĄ', x2: 'X2 MONETOS', garage: 'GARAŽAS', paint: 'DAŽAI', notEnough: 'TRŪKSTA MONETŲ', max: 'MAKS',
+    locked: 'UŽRAKINTA', best: 'REKORDAS', drive: 'VAŽIUOTI', chopperIn: 'ATSKRENDA SRAIGTASPARNIS!', tankIn: 'ATVAŽIUOJA TANKAS!', bossDown: 'BOSAS SUNAIKINTAS!', speed: '% GREIČIO', hp: 'GYV.',
+    rotate: 'PASUK TELEFONĄ',
+    w_turret: 'PABŪKLAS', w_orbit: 'DRONAI', w_mines: 'MINOS', w_rockets: 'RAKETOS', w_tesla: 'TESLA', w_shotgun: 'ŠRATINIS', w_spikes: 'SPYGLIAI', w_laser: 'LAZERIS',
+    t_engine: 'VARIKLIS', t_armor: 'ŠARVAI', t_magnet: 'MAGNETAS', t_caliber: 'GALIA', t_cool: 'AUŠINIMAS', t_hp: 'KĖBULAS', t_nitro: 'NITRO', t_area: 'ZONA', t_amount: 'DAUGIAU',
+    u_eng: 'VARIKLIS', u_arm: 'ŠARVAI', u_mag: 'MAGNETAS', u_nit: 'NITRO', u_wpn: 'GINKLAS',
+    ud_eng: '+5% GREIČIO', ud_arm: '+20 GYVYBIŲ', ud_mag: '+25% RINKIMO ATSTUMO', ud_nit: '+20% NITRO', ud_wpn: '+1 PRADINIS LYGIS',
+  },
+  ru: {
+    lang: 'РУССКИЙ', lv: 'УР', chopper: 'ВЕРТОЛЁТ', tank: 'ТАНК', drag: 'ВЕДИ ПАЛЬЦЕМ', keys: 'WASD / СТРЕЛКИ', escape: 'УДИРАЙ ОТ ПОЛИЦИИ',
+    levelup: 'НОВЫЙ УРОВЕНЬ!', new: 'НОВОЕ!', repair: 'РЕМОНТ', coins: 'МОНЕТЫ', paused: 'ПАУЗА', resume: 'ДАЛЬШЕ', soundOn: 'ЗВУК: ВКЛ', soundOff: 'ЗВУК: ВЫКЛ',
+    endRun: 'ЗАКОНЧИТЬ', wrecked: 'РАЗБИТ!', keepDriving: 'ЕХАТЬ ДАЛЬШЕ?', revive: 'ОЖИВИТЬ', noThanks: 'НЕТ', newBest: 'РЕКОРД!', runOver: 'КОНЕЦ',
+    time: 'ВРЕМЯ', cops: 'ПОЛИЦИЯ', timeBonus: 'ЗА ВРЕМЯ', x2: 'X2 МОНЕТЫ', garage: 'ГАРАЖ', paint: 'КРАСКА', notEnough: 'МАЛО МОНЕТ', max: 'МАКС',
+    locked: 'ЗАКРЫТО', best: 'РЕКОРД', drive: 'ПОЕХАЛИ', chopperIn: 'ЛЕТИТ ВЕРТОЛЁТ!', tankIn: 'ЕДЕТ ТАНК!', bossDown: 'БОСС ПОВЕРЖЕН!', speed: '% СКОРОСТИ', hp: 'HP',
+    rotate: 'ПОВЕРНИ ТЕЛЕФОН',
+    w_turret: 'ПУШКА', w_orbit: 'ДРОНЫ', w_mines: 'МИНЫ', w_rockets: 'РАКЕТЫ', w_tesla: 'ТЕСЛА', w_shotgun: 'ДРОБОВИК', w_spikes: 'ШИПЫ', w_laser: 'ЛАЗЕР',
+    t_engine: 'ДВИГАТЕЛЬ', t_armor: 'БРОНЯ', t_magnet: 'МАГНИТ', t_caliber: 'МОЩЬ', t_cool: 'ОХЛАЖДЕНИЕ', t_hp: 'КОРПУС', t_nitro: 'НИТРО', t_area: 'ЗОНА', t_amount: 'ЕЩЁ',
+    u_eng: 'ДВИГАТЕЛЬ', u_arm: 'БРОНЯ', u_mag: 'МАГНИТ', u_nit: 'НИТРО', u_wpn: 'ОРУЖИЕ',
+    ud_eng: '+5% СКОРОСТИ', ud_arm: '+20 ЗДОРОВЬЯ', ud_mag: '+25% РАДИУС СБОРА', ud_nit: '+20% НИТРО', ud_wpn: '+1 УРОВЕНЬ НА СТАРТЕ',
+  },
+  es: {
+    lang: 'ESPAÑOL', lv: 'NV', chopper: 'HELICÓPTERO', tank: 'TANQUE', drag: 'ARRASTRA PARA CONDUCIR', keys: 'WASD / FLECHAS', escape: 'ESCAPA DE LA POLICÍA',
+    levelup: '¡SUBES DE NIVEL!', new: '¡NUEVO!', repair: 'REPARAR', coins: 'MONEDAS', paused: 'PAUSA', resume: 'SEGUIR', soundOn: 'SONIDO: SÍ', soundOff: 'SONIDO: NO',
+    endRun: 'TERMINAR', wrecked: '¡DESTROZADO!', keepDriving: '¿SEGUIR CONDUCIENDO?', revive: 'REVIVIR', noThanks: 'NO, GRACIAS', newBest: '¡RÉCORD!', runOver: 'FIN',
+    time: 'TIEMPO', cops: 'POLICÍAS', timeBonus: 'BONO TIEMPO', x2: 'X2 MONEDAS', garage: 'GARAJE', paint: 'PINTURA', notEnough: 'FALTAN MONEDAS', max: 'MÁX',
+    locked: 'BLOQUEADO', best: 'RÉCORD', drive: 'CONDUCIR', chopperIn: '¡VIENE UN HELICÓPTERO!', tankIn: '¡VIENE UN TANQUE!', bossDown: '¡JEFE DERROTADO!', speed: '% VELOCIDAD', hp: 'VIDA',
+    rotate: 'GIRA EL TELÉFONO',
+    w_turret: 'CAÑÓN', w_orbit: 'DRONES', w_mines: 'MINAS', w_rockets: 'COHETES', w_tesla: 'TESLA', w_shotgun: 'ESCOPETA', w_spikes: 'PINCHOS', w_laser: 'LÁSER',
+    t_engine: 'MOTOR', t_armor: 'BLINDAJE', t_magnet: 'IMÁN', t_caliber: 'POTENCIA', t_cool: 'ENFRIAR', t_hp: 'CHASIS', t_nitro: 'NITRO', t_area: 'ÁREA', t_amount: 'EXTRA',
+    u_eng: 'MOTOR', u_arm: 'BLINDAJE', u_mag: 'IMÁN', u_nit: 'NITRO', u_wpn: 'ARMA',
+    ud_eng: '+5% VELOCIDAD', ud_arm: '+20 VIDA', ud_mag: '+25% ALCANCE', ud_nit: '+20% NITRO', ud_wpn: '+1 NIVEL INICIAL',
+  },
+  pt: {
+    lang: 'PORTUGUÊS', lv: 'NV', chopper: 'HELICÓPTERO', tank: 'TANQUE', drag: 'ARRASTE PARA DIRIGIR', keys: 'WASD / SETAS', escape: 'FUJA DA POLÍCIA',
+    levelup: 'SUBIU DE NÍVEL!', new: 'NOVO!', repair: 'CONSERTO', coins: 'MOEDAS', paused: 'PAUSA', resume: 'CONTINUAR', soundOn: 'SOM: SIM', soundOff: 'SOM: NÃO',
+    endRun: 'ENCERRAR', wrecked: 'DESTRUÍDO!', keepDriving: 'CONTINUAR DIRIGINDO?', revive: 'REVIVER', noThanks: 'NÃO, VALEU', newBest: 'RECORDE!', runOver: 'FIM',
+    time: 'TEMPO', cops: 'POLICIAIS', timeBonus: 'BÔNUS TEMPO', x2: 'X2 MOEDAS', garage: 'GARAGEM', paint: 'PINTURA', notEnough: 'FALTAM MOEDAS', max: 'MÁX',
+    locked: 'BLOQUEADO', best: 'RECORDE', drive: 'DIRIGIR', chopperIn: 'LÁ VEM O HELICÓPTERO!', tankIn: 'LÁ VEM O TANQUE!', bossDown: 'CHEFE DERROTADO!', speed: '% VELOCIDADE', hp: 'VIDA',
+    rotate: 'GIRE O CELULAR',
+    w_turret: 'CANHÃO', w_orbit: 'DRONES', w_mines: 'MINAS', w_rockets: 'FOGUETES', w_tesla: 'TESLA', w_shotgun: 'ESCOPETA', w_spikes: 'ESPINHOS', w_laser: 'LASER',
+    t_engine: 'MOTOR', t_armor: 'BLINDAGEM', t_magnet: 'ÍMÃ', t_caliber: 'PODER', t_cool: 'RESFRIAR', t_hp: 'CHASSI', t_nitro: 'NITRO', t_area: 'ÁREA', t_amount: 'EXTRA',
+    u_eng: 'MOTOR', u_arm: 'BLINDAGEM', u_mag: 'ÍMÃ', u_nit: 'NITRO', u_wpn: 'ARMA',
+    ud_eng: '+5% VELOCIDADE', ud_arm: '+20 VIDA', ud_mag: '+25% ALCANCE', ud_nit: '+20% NITRO', ud_wpn: '+1 NÍVEL INICIAL',
+  },
+  fr: {
+    lang: 'FRANÇAIS', lv: 'NIV', chopper: 'HÉLICO', tank: 'CHAR', drag: 'GLISSE POUR CONDUIRE', keys: 'ZQSD / FLÈCHES', escape: 'ÉCHAPPE À LA POLICE',
+    levelup: 'NIVEAU SUPÉRIEUR!', new: 'NOUVEAU!', repair: 'RÉPARER', coins: 'PIÈCES', paused: 'PAUSE', resume: 'REPRENDRE', soundOn: 'SON: OUI', soundOff: 'SON: NON',
+    endRun: 'ABANDONNER', wrecked: 'DÉTRUIT!', keepDriving: 'CONTINUER?', revive: 'REVIVRE', noThanks: 'NON MERCI', newBest: 'RECORD!', runOver: 'FIN',
+    time: 'TEMPS', cops: 'POLICIERS', timeBonus: 'BONUS TEMPS', x2: 'X2 PIÈCES', garage: 'GARAGE', paint: 'PEINTURE', notEnough: 'PAS ASSEZ DE PIÈCES', max: 'MAX',
+    locked: 'VERROUILLÉ', best: 'RECORD', drive: 'ROULER', chopperIn: 'UN HÉLICO ARRIVE!', tankIn: 'UN CHAR ARRIVE!', bossDown: 'BOSS VAINCU!', speed: '% VITESSE', hp: 'PV',
+    rotate: 'TOURNE TON TÉLÉPHONE',
+    w_turret: 'CANON', w_orbit: 'DRONES', w_mines: 'MINES', w_rockets: 'ROQUETTES', w_tesla: 'TESLA', w_shotgun: 'FUSIL', w_spikes: 'CLOUS', w_laser: 'LASER',
+    t_engine: 'MOTEUR', t_armor: 'BLINDAGE', t_magnet: 'AIMANT', t_caliber: 'PUISSANCE', t_cool: 'REFROIDIR', t_hp: 'CHÂSSIS', t_nitro: 'NITRO', t_area: 'ZONE', t_amount: 'BONUS',
+    u_eng: 'MOTEUR', u_arm: 'BLINDAGE', u_mag: 'AIMANT', u_nit: 'NITRO', u_wpn: 'ARME',
+    ud_eng: '+5% VITESSE', ud_arm: '+20 VIE', ud_mag: '+25% PORTÉE', ud_nit: '+20% NITRO', ud_wpn: '+1 NIVEAU DE DÉPART',
+  },
+  de: {
+    lang: 'DEUTSCH', lv: 'LV', chopper: 'HUBSCHRAUBER', tank: 'PANZER', drag: 'ZIEHEN ZUM FAHREN', keys: 'WASD / PFEILE', escape: 'ENTKOMME DER POLIZEI',
+    levelup: 'LEVEL UP!', new: 'NEU!', repair: 'REPARATUR', coins: 'MÜNZEN', paused: 'PAUSE', resume: 'WEITER', soundOn: 'TON: AN', soundOff: 'TON: AUS',
+    endRun: 'BEENDEN', wrecked: 'SCHROTT!', keepDriving: 'WEITERFAHREN?', revive: 'RETTEN', noThanks: 'NEIN DANKE', newBest: 'REKORD!', runOver: 'ENDE',
+    time: 'ZEIT', cops: 'POLIZEI', timeBonus: 'ZEITBONUS', x2: 'X2 MÜNZEN', garage: 'GARAGE', paint: 'LACK', notEnough: 'ZU WENIG MÜNZEN', max: 'MAX',
+    locked: 'GESPERRT', best: 'REKORD', drive: 'LOSFAHREN', chopperIn: 'HUBSCHRAUBER KOMMT!', tankIn: 'PANZER KOMMT!', bossDown: 'BOSS BESIEGT!', speed: '% TEMPO', hp: 'LP',
+    rotate: 'HANDY DREHEN',
+    w_turret: 'KANONE', w_orbit: 'DROHNEN', w_mines: 'MINEN', w_rockets: 'RAKETEN', w_tesla: 'TESLA', w_shotgun: 'FLINTE', w_spikes: 'STACHELN', w_laser: 'LASER',
+    t_engine: 'MOTOR', t_armor: 'PANZERUNG', t_magnet: 'MAGNET', t_caliber: 'KRAFT', t_cool: 'KÜHLUNG', t_hp: 'CHASSIS', t_nitro: 'NITRO', t_area: 'RADIUS', t_amount: 'EXTRA',
+    u_eng: 'MOTOR', u_arm: 'PANZERUNG', u_mag: 'MAGNET', u_nit: 'NITRO', u_wpn: 'WAFFE',
+    ud_eng: '+5% TEMPO', ud_arm: '+20 LEBEN', ud_mag: '+25% REICHWEITE', ud_nit: '+20% NITRO', ud_wpn: '+1 STARTLEVEL',
+  },
+  it: {
+    lang: 'ITALIANO', lv: 'LV', chopper: 'ELICOTTERO', tank: 'CARRO ARMATO', drag: 'TRASCINA PER GUIDARE', keys: 'WASD / FRECCE', escape: 'SCAPPA DALLA POLIZIA',
+    levelup: 'LIVELLO SUPERIORE!', new: 'NUOVO!', repair: 'RIPARA', coins: 'MONETE', paused: 'PAUSA', resume: 'RIPRENDI', soundOn: 'AUDIO: SÌ', soundOff: 'AUDIO: NO',
+    endRun: 'TERMINA', wrecked: 'DISTRUTTO!', keepDriving: 'CONTINUI A GUIDARE?', revive: 'RIVIVI', noThanks: 'NO, GRAZIE', newBest: 'RECORD!', runOver: 'FINE',
+    time: 'TEMPO', cops: 'POLIZIOTTI', timeBonus: 'BONUS TEMPO', x2: 'X2 MONETE', garage: 'GARAGE', paint: 'VERNICE', notEnough: 'MONETE INSUFFICIENTI', max: 'MAX',
+    locked: 'BLOCCATO', best: 'RECORD', drive: 'GUIDA', chopperIn: "ARRIVA L'ELICOTTERO!", tankIn: 'ARRIVA IL CARRO ARMATO!', bossDown: 'BOSS SCONFITTO!', speed: '% VELOCITÀ', hp: 'PV',
+    rotate: 'RUOTA IL TELEFONO',
+    w_turret: 'CANNONE', w_orbit: 'DRONI', w_mines: 'MINE', w_rockets: 'RAZZI', w_tesla: 'TESLA', w_shotgun: 'FUCILE', w_spikes: 'CHIODI', w_laser: 'LASER',
+    t_engine: 'MOTORE', t_armor: 'CORAZZA', t_magnet: 'CALAMITA', t_caliber: 'POTENZA', t_cool: 'RAFFREDDA', t_hp: 'TELAIO', t_nitro: 'NITRO', t_area: 'AREA', t_amount: 'EXTRA',
+    u_eng: 'MOTORE', u_arm: 'CORAZZA', u_mag: 'CALAMITA', u_nit: 'NITRO', u_wpn: 'ARMA',
+    ud_eng: '+5% VELOCITÀ', ud_arm: '+20 VITA', ud_mag: '+25% RAGGIO', ud_nit: '+20% NITRO', ud_wpn: '+1 LIVELLO INIZIALE',
+  },
+  pl: {
+    lang: 'POLSKI', lv: 'POZ', chopper: 'HELIKOPTER', tank: 'CZOŁG', drag: 'PRZECIĄGNIJ, BY JECHAĆ', keys: 'WASD / STRZAŁKI', escape: 'UCIEKAJ PRZED POLICJĄ',
+    levelup: 'NOWY POZIOM!', new: 'NOWE!', repair: 'NAPRAWA', coins: 'MONETY', paused: 'PAUZA', resume: 'DALEJ', soundOn: 'DŹWIĘK: TAK', soundOff: 'DŹWIĘK: NIE',
+    endRun: 'ZAKOŃCZ', wrecked: 'ROZBITY!', keepDriving: 'JEDZIESZ DALEJ?', revive: 'OŻYW', noThanks: 'NIE, DZIĘKI', newBest: 'REKORD!', runOver: 'KONIEC',
+    time: 'CZAS', cops: 'POLICJA', timeBonus: 'BONUS CZASU', x2: 'X2 MONETY', garage: 'GARAŻ', paint: 'LAKIER', notEnough: 'ZA MAŁO MONET', max: 'MAKS',
+    locked: 'ZABLOKOWANE', best: 'REKORD', drive: 'JEDŹ', chopperIn: 'LECI HELIKOPTER!', tankIn: 'JEDZIE CZOŁG!', bossDown: 'BOSS POKONANY!', speed: '% PRĘDKOŚCI', hp: 'HP',
+    rotate: 'OBRÓĆ TELEFON',
+    w_turret: 'DZIAŁKO', w_orbit: 'DRONY', w_mines: 'MINY', w_rockets: 'RAKIETY', w_tesla: 'TESLA', w_shotgun: 'STRZELBA', w_spikes: 'KOLCE', w_laser: 'LASER',
+    t_engine: 'SILNIK', t_armor: 'PANCERZ', t_magnet: 'MAGNES', t_caliber: 'MOC', t_cool: 'CHŁODZENIE', t_hp: 'NADWOZIE', t_nitro: 'NITRO', t_area: 'ZASIĘG', t_amount: 'EKSTRA',
+    u_eng: 'SILNIK', u_arm: 'PANCERZ', u_mag: 'MAGNES', u_nit: 'NITRO', u_wpn: 'BROŃ',
+    ud_eng: '+5% PRĘDKOŚCI', ud_arm: '+20 ŻYCIA', ud_mag: '+25% ZASIĘGU', ud_nit: '+20% NITRO', ud_wpn: '+1 POZIOM STARTOWY',
+  },
+  tr: {
+    lang: 'TÜRKÇE', lv: 'SV', chopper: 'HELİKOPTER', tank: 'TANK', drag: 'SÜRMEK İÇİN KAYDIR', keys: 'WASD / OKLAR', escape: 'POLİSTEN KAÇ',
+    levelup: 'SEVİYE ATLADIN!', new: 'YENİ!', repair: 'TAMİR', coins: 'PARA', paused: 'DURAKLATILDI', resume: 'DEVAM', soundOn: 'SES: AÇIK', soundOff: 'SES: KAPALI',
+    endRun: 'BİTİR', wrecked: 'HURDA OLDUN!', keepDriving: 'DEVAM ET?', revive: 'CANLAN', noThanks: 'HAYIR', newBest: 'REKOR!', runOver: 'BİTTİ',
+    time: 'SÜRE', cops: 'POLİS', timeBonus: 'SÜRE BONUSU', x2: 'X2 PARA', garage: 'GARAJ', paint: 'BOYA', notEnough: 'PARA YETMİYOR', max: 'MAKS',
+    locked: 'KİLİTLİ', best: 'REKOR', drive: 'SÜR', chopperIn: 'HELİKOPTER GELİYOR!', tankIn: 'TANK GELİYOR!', bossDown: 'BOSS YENİLDİ!', speed: '% HIZ', hp: 'CAN',
+    rotate: 'TELEFONU ÇEVİR',
+    w_turret: 'TOP', w_orbit: 'DRONLAR', w_mines: 'MAYINLAR', w_rockets: 'ROKETLER', w_tesla: 'TESLA', w_shotgun: 'POMPALI', w_spikes: 'ÇİVİLER', w_laser: 'LAZER',
+    t_engine: 'MOTOR', t_armor: 'ZIRH', t_magnet: 'MIKNATIS', t_caliber: 'GÜÇ', t_cool: 'SOĞUTMA', t_hp: 'ŞASİ', t_nitro: 'NİTRO', t_area: 'ALAN', t_amount: 'EKSTRA',
+    u_eng: 'MOTOR', u_arm: 'ZIRH', u_mag: 'MIKNATIS', u_nit: 'NİTRO', u_wpn: 'SİLAH',
+    ud_eng: '+5% HIZ', ud_arm: '+20 CAN', ud_mag: '+25% MENZİL', ud_nit: '+20% NİTRO', ud_wpn: '+1 BAŞLANGIÇ SEVİYESİ',
+  },
+};
+const LANG_IDS = Object.keys(LANGS);
+let LG = 'en';
+const L = k => (LANGS[LG] && LANGS[LG][k]) || LANGS.en[k] || k;
+/* Kalba: išsaugota -> naršyklės kalba -> anglų */
+function langInit() {
+  const nav = (navigator.languages && navigator.languages[0] || navigator.language || 'en').slice(0, 2).toLowerCase();
+  LG = LANGS[save.lang] ? save.lang : LANGS[nav] ? nav : 'en';
+  langApply();
+}
+function langNext() { LG = LANG_IDS[(LANG_IDS.indexOf(LG) + 1) % LANG_IDS.length]; save.lang = LG; persist(); langApply(); }
+function langApply() { const r = document.getElementById('rotT'); if (r) r.textContent = L('rotate'); document.documentElement.lang = LG; }
