@@ -122,12 +122,35 @@ function drawGround() {
     else if (!inRegion(cx, cy)) { ctx.fillStyle = '#2D5A8C'; ctx.fillRect(cx * CH - camX, cy * CH - camY, CH, CH); }   // už srities - jūra
     else { ctx.fillStyle = '#5A5E66'; ctx.fillRect(cx * CH - camX, cy * CH - camY, CH, CH); }
   }
-  /* srities kraštas: geltonai juodas atitvaras */
+  drawBorder();
+}
+/* Srities kraštas - Steam greitkelio atitvaras (Jersey, World.Chunk JEdge/JFace/JRidge/JRefl): betoniniai blokai tik ant pravažiuojamos
+   žemės (per pastatus nepiešiama), sandūros kas 28 px, geltoni atšvaitai; už ribos miestas patamsintas */
+const JC = ['#15171B', '#E2E5EA', '#F4F6F8', '#F4F6F8', '#D3D7DD', '#B5B9C0', '#33363D', 'rgba(0,0,0,.32)', 'rgba(0,0,0,.16)'];   // Jersey: kontūras, šviesus viršus, šonas, kontūras, šešėlis
+function groundCls(x, y) { const px = Math.floor(x * PPU), py = Math.floor(y * PPU), cx = Math.floor(px / CH), cy = Math.floor(py / CH); const c = chunks.get(cx + '_' + cy); return c && c.cls ? c.cls[(py - cy * CH) * CH + (px - cx * CH)] & 15 : 0; }
+function drawBorder() {
   const bx0 = Math.round(WB.x0 * PPU + 18 - camX), by0 = Math.round(WB.y0 * PPU + 18 - camY), bx1 = Math.round(WB.x1 * PPU - 18 - camX), by1 = Math.round(WB.y1 * PPU - 18 - camY);
-  ctx.fillStyle = '#16181D'; ctx.fillRect(bx0 - 2, by0 - 2, bx1 - bx0 + 4, 4); ctx.fillRect(bx0 - 2, by1 - 2, bx1 - bx0 + 4, 4); ctx.fillRect(bx0 - 2, by0 - 2, 4, by1 - by0 + 4); ctx.fillRect(bx1 - 2, by0 - 2, 4, by1 - by0 + 4);
-  ctx.fillStyle = '#F2C230';
-  for (let x = bx0 - (bx0 % 8); x < bx1; x += 8) { ctx.fillRect(x, by0 - 1, 4, 2); ctx.fillRect(x, by1 - 1, 4, 2); }
-  for (let y = by0 - (by0 % 8); y < by1; y += 8) { ctx.fillRect(bx0 - 1, y, 2, 4); ctx.fillRect(bx1 - 1, y, 2, 4); }
+  ctx.fillStyle = 'rgba(12,14,18,.4)';
+  if (by0 > 2) ctx.fillRect(0, 0, WW, Math.min(WH, by0 - 2)); if (by1 < WH - 3) ctx.fillRect(0, Math.max(0, by1 + 3), WW, WH);
+  const t0 = Math.max(0, by0 - 2), t1 = Math.min(WH, by1 + 3);
+  if (bx0 > 2) ctx.fillRect(0, t0, Math.min(WW, bx0 - 2), t1 - t0); if (bx1 < WW - 3) ctx.fillRect(Math.max(0, bx1 + 3), t0, WW, t1 - t0);
+  /* vienas kraštas: atkarpos ant pravažiuojamos žemės (ištisiniai bėgimai - po 5 stačiakampius), sandūros ir atšvaitai */
+  const edge = (horiz, c0, a0, a1) => {
+    const w = (u, v) => horiz ? groundCls((u + camX) / PPU, (c0 + camY) / PPU) : groundCls((c0 + camX) / PPU, (u + camY) / PPU);
+    const lim = horiz ? WW : WH; let s0 = -1;
+    for (let u = Math.max(a0 - 2, 0); u <= Math.min(a1 + 2, lim) + 1; u++) {
+      const ok = u <= Math.min(a1 + 2, lim) && w(u) < SOLID;
+      if (ok && s0 < 0) s0 = u;
+      if (!ok && s0 >= 0) { const n = u - s0;
+        for (let k = 0; k < JC.length; k++) { ctx.fillStyle = JC[k]; if (horiz) ctx.fillRect(s0, c0 - 3 + k, n, 1); else ctx.fillRect(c0 - 3 + k, s0, 1, n); }
+        for (let q = s0; q < u; q++) { const g = q + (horiz ? camX : camY), m = ((g % 28) + 28) % 28;
+          if (m === 0) { ctx.fillStyle = '#878B93'; horiz ? ctx.fillRect(q, c0 - 2, 1, 5) : ctx.fillRect(c0 - 2, q, 5, 1); }
+          else if (m === 14) { ctx.fillStyle = '#FFC233'; horiz ? ctx.fillRect(q, c0 + 1, 2, 1) : ctx.fillRect(c0 + 1, q, 1, 2); } }
+        s0 = -1; }
+    }
+  };
+  if (by0 > -3 && by0 < WH + 3) edge(true, by0, bx0, bx1); if (by1 > -3 && by1 < WH + 3) edge(true, by1, bx0, bx1);
+  if (bx0 > -3 && bx0 < WW + 3) edge(false, bx0, by0, by1); if (bx1 > -3 && bx1 < WW + 3) edge(false, bx1, by0, by1);
 }
 function drawProps(top) {
   const c0 = Math.floor((camX - 20) / CH), c1 = Math.floor((camX + WW + 20) / CH), r0 = Math.floor((camY - 20) / CH), r1 = Math.floor((camY + WH + 20) / CH), P = A.map.props;
