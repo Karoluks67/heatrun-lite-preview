@@ -222,7 +222,7 @@ function stepWeapons(dt) {
       let from = { x: pl.x, y: pl.y }; const hit = new Set(); let t = nearestCop(pl.x, pl.y, 380);
       if (!t) fired = false; else { for (let i = 0; i < amt && t; i++) { zaps.push({ x0: from.x, y0: from.y, x1: t.x, y1: t.y, t: .18 }); hurtCop(t, dmg); hit.add(t); from = t; t = nearestCop(t.x, t.y, area, hit); } sfx('zap'); }
     } else if (w === 'laser') {
-      if (!nearestCop(pl.x, pl.y, area)) fired = false; else G.laser = { t: wv(w, 'dur', lv), len: area, dmg: dmg * .3, n: amt, tick: 0 };
+      if (!nearestCop(pl.x, pl.y, area)) fired = false; else G.laser = { t: wv(w, 'dur', lv), len: area, dps: dmg, n: amt, tick: 0, side: 1, lv };
     }
     G.cd[w] = fired ? wv(w, 'cd', lv) * cdMul() : .15;
   }
@@ -232,11 +232,22 @@ function stepWeapons(dt) {
     for (let i = 0; i < n; i++) { const a = G.orbA + i / n * TAU, x = pl.x + Math.cos(a) * R, y = pl.y + Math.sin(a) * R;
       for (const c of cops) if (!c.dead) { if ((c.x - x) ** 2 + (c.y - y) ** 2 < (c.r + 16) ** 2 && !(c.orbCd > G.t)) { c.orbCd = G.t + .4; hurtCop(c, dmg); sfx('hit'); } } }
   }
-  if (G.laser) {   // lazeris: spindulys priekin, žala kas 0,15 s
-    const L = G.laser; L.t -= dt; L.tick -= dt;
-    if (L.tick <= 0) { L.tick = .15; for (let k = 0; k < L.n; k++) { const a = pl.a + (k - (L.n - 1) / 2) * .5, ex = Math.cos(a), ey = Math.sin(a);
-      for (const c of cops) { if (c.dead) continue; const px = c.x - pl.x, py = c.y - pl.y, f = px * ex + py * ey, s = Math.abs(-px * ey + py * ex); if (f > 0 && f < L.len && s < c.r + 10) hurtCop(c, L.dmg); } } }
-    if (L.t <= 0) G.laser = null;
+  /* Lazeris (Steam Run.Laser): serija impulsų kas 0,1 s pakaitomis iš kairio ir dešinio žibinto; srautas i - į i-tą artimiausią policininką
+     35° kūgyje priekyje (su pataisa jo greičiui), be taikinio - tiesiai ±8°; impulsas pramuša 2, į sieną užgęsta */
+  if (G.laser) {
+    const Z = G.laser; Z.t -= dt; Z.tick -= dt;
+    if (Z.tick <= 0) {
+      Z.tick = Math.max(0, Z.tick + .1); Z.side = -Z.side;
+      const a0 = pl.a, ux = Math.cos(a0), uy = Math.sin(a0), ox = pl.x + ux * 24 - uy * 7 * Z.side, oy = pl.y + uy * 24 + ux * 7 * Z.side, V = 1300;
+      const tg = cops.filter(c => !c.dead && Math.hypot(c.x - ox, c.y - oy) < Z.len + c.r && Math.abs(angDiff(a0, Math.atan2(c.y - oy, c.x - ox))) < .61).sort((p, q) => Math.hypot(p.x - ox, p.y - oy) - Math.hypot(q.x - ox, q.y - oy));
+      for (let i = 0; i < Z.n; i++) {
+        let a = a0 + (i - (Z.n - 1) / 2) * .14; const t = tg[i] || tg[0];
+        if (t) { const lead = Math.hypot(t.x - ox, t.y - oy) / V; a = Math.atan2(t.y + (t.vy || 0) * lead - oy, t.x + (t.vx || 0) * lead - ox) + (i >= tg.length ? (i - (Z.n - 1) / 2) * .09 : 0); }
+        proj.push({ k: 'lbolt', x: ox, y: oy, vx: Math.cos(a) * V, vy: Math.sin(a) * V, life: (Z.len + 40) / V, dmg: Z.dps * .1, r: 6, pierce: 2, hit: new Set(), lv: Z.lv });
+      }
+      tone(1400 + 120 * Z.side, .05, .03, 'sawtooth', 700);
+    }
+    if (Z.t <= 0) G.laser = null;
   }
   /* sviediniai */
   for (const p of proj) {
@@ -246,7 +257,11 @@ function stepWeapons(dt) {
       if (Math.random() < .6) puff(p.x, p.y, 0, 0, .4, 2, '#E8EAEE', '#B9BEC6'); }
     p.x += p.vx * dt; p.y += p.vy * dt;
     if (solidAt(p.x, p.y)) { p.life = 0; if (p.k === 'rkt') explode(p.x, p.y, p.area, p.dmg); continue; }
-    for (const c of cops) { if (c.dead) continue; if ((c.x - p.x) ** 2 + (c.y - p.y) ** 2 < (c.r + p.r) ** 2) { if (p.k === 'rkt') explode(p.x, p.y, p.area, p.dmg); else { hurtCop(c, p.dmg); sfx('hit'); } p.life = 0; break; } }
+    for (const c of cops) { if (c.dead || p.hit && p.hit.has(c)) continue; if ((c.x - p.x) ** 2 + (c.y - p.y) ** 2 < (c.r + p.r) ** 2) {
+      if (p.k === 'rkt') explode(p.x, p.y, p.area, p.dmg);
+      else if (p.k === 'lbolt') { hurtCop(c, p.dmg); p.hit.add(c); for (let i = 0; i < 3; i++) ps.push({ k: 'sq', x: p.x, y: p.y, vx: -p.vx * .15 + rnd(-260, 260), vy: -p.vy * .15 + rnd(-260, 260), life: rnd(.12, .26), max: .26, c: pick(['#FFFFFF', '#FFC0E8', '#FF4FB8']), s: 1 }); if (--p.pierce >= 0) continue; }   // pramuša
+      else { hurtCop(c, p.dmg); sfx('hit'); }
+      p.life = 0; break; } }
   }
   proj = proj.filter(p => p.life > 0);
   /* žemėje: minos, spygliai, bosų bombos */

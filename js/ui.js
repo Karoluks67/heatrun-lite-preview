@@ -44,10 +44,15 @@ function drawWorld(t) {
   /* ginklai */
   if (G.w.orbit && !G.over) { const n = wv('orbit', 'amt', G.w.orbit) + amtAdd(), R = wv('orbit', 'area', G.w.orbit) * areaMul();
     for (let i = 0; i < n; i++) { const a = G.orbA + i / n * TAU, [x, y] = P2(pl.x + Math.cos(a) * R, pl.y + Math.sin(a) * R); spr(Math.floor(t * 10) % 2 ? 'wpn_orbit_00' : 'wpn_orbit_01', x, y); } }
-  if (G.laser) { const L = G.laser; for (let k = 0; k < L.n; k++) { const a = pl.a + (k - (L.n - 1) / 2) * .5, [x0, y0] = P2(pl.x, pl.y), [x1, y1] = P2(pl.x + Math.cos(a) * L.len, pl.y + Math.sin(a) * L.len);
-    linePx(x0, y0, x1, y1, '#FF4FB8', 3); linePx(x0, y0, x1, y1, '#FFE0F4', 1); } }
   for (const p of proj) { const [x, y] = P2(p.x, p.y);
-    if (p.k === 'rkt') { ctx.fillStyle = '#E8EAEE'; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); ctx.fillStyle = '#FF7A3A'; ctx.fillRect(Math.round(x - Math.cos(p.a) * 2), Math.round(y - Math.sin(p.a) * 2), 2, 2); }
+    if (p.k === 'lbolt') {   // Steam LaserBolt: švytėjimas, rožinis kūnas, balta šerdis, pėdsakas, balta galvutė
+      const sp = Math.hypot(p.vx, p.vy) || 1, ux = p.vx / sp, uy = p.vy / sp, len = 12 + Math.min(7, p.lv || 1) * 2, tx = x - ux * len, ty = y - uy * len;
+      ctx.globalAlpha = .28; linePx(x + ux, y + uy, tx, ty, '#FF4FB8', 4); ctx.globalAlpha = 1;
+      linePx(x, y, x - ux * len * .85, y - uy * len * .85, '#FF4FB8', 2); linePx(x, y, x - ux * len * .55, y - uy * len * .55, '#FFE0F4', 1);
+      for (let i = 1; i <= 4; i++) { ctx.globalAlpha = .55 - i * .12; ctx.fillStyle = i < 3 ? '#FF7AD0' : '#FF4FB8'; ctx.fillRect(Math.round(tx - ux * i * 2), Math.round(ty - uy * i * 2), 1, 1); }
+      ctx.globalAlpha = 1; ctx.fillStyle = '#FFFFFF'; ctx.fillRect(Math.round(x), Math.round(y), 1, 1); ctx.fillRect(Math.round(x - ux), Math.round(y - uy), 1, 1);
+    }
+    else if (p.k === 'rkt') { ctx.fillStyle = '#E8EAEE'; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); ctx.fillStyle = '#FF7A3A'; ctx.fillRect(Math.round(x - Math.cos(p.a) * 2), Math.round(y - Math.sin(p.a) * 2), 2, 2); }
     else { const [bx, by] = P2(p.x - p.vx * .02, p.y - p.vy * .02); linePx(bx, by, x, y, p.col, 1); ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(x), Math.round(y), 1, 1); } }
   for (const z of zaps) { const [x0, y0] = P2(z.x0, z.y0), [x1, y1] = P2(z.x1, z.y1); let px = x0, py = y0; for (let i = 1; i <= 5; i++) { const nx = lerp(x0, x1, i / 5) + (i < 5 ? rnd(-4, 4) : 0), ny = lerp(y0, y1, i / 5) + (i < 5 ? rnd(-4, 4) : 0); linePx(px, py, nx, ny, '#7FE8FF', 2); linePx(px, py, nx, ny, '#FFFFFF', 1); px = nx; py = ny; } }
   drawFx(false); drawProps(true);
