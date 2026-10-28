@@ -13,6 +13,7 @@ function newRun() {
   Object.assign(pl, { x: 0, y: 0, a: -Math.PI / 2, vx: 0, vy: 0, nitro: .5 + up.nit * .1, boost: false, inv: 1.5, hp: mx, max: mx, drift: 0,
     spr: `car_${car.id}_${cs.paint}`, sh: `car_${car.id}_sh` });
   bodyInit(pl, Object.assign({ len: 52, wid: 24, top: TOP }, car.phys || {})); pl.vx = 0; pl.vy = 0; pl.revMode = false; pl.L = 26; pl.W = 12;
+  const cm = A.spr.cars.find(c => c.id === car.id); pl.rear = (cm ? cm.L / 2 : 15) / PPU + 2;   // galinis buferis (sprite'o ilgis) - iš ten nitro liepsna ir dūmai
   const [fx, fy] = freeNear(0, 0); pl.x = fx; pl.y = fy;
 }
 /* ---------- Dydžiai su pasyvais ir garažu ---------- */
@@ -39,13 +40,13 @@ function playerCtl() {
   if (!G.started) { c.brk = 1; return c; }
   const ca = Math.cos(pl.a), sa = Math.sin(pl.a), u = pl.vx * ca + pl.vy * sa;
   const kU = keys.KeyW || keys.ArrowUp, kD = keys.KeyS || keys.ArrowDown, kL = keys.KeyA || keys.ArrowLeft, kR = keys.KeyD || keys.ArrowRight;
-  if (tb.gas || tb.brake || tb.left || tb.right) {   // lietimo mygtukai: stabdis su vairu greitai - driftas, stovint - atbulinė
-    c.steer = (tb.right ? 1 : 0) - (tb.left ? 1 : 0); c.thr = tb.gas ? 1 : 0; c.rev = tb.brake ? 1 : 0;
-    if (tb.gas && tb.brake) { c.burn = true; c.thr = 0; c.rev = 0; } else if (tb.brake && c.steer && u > 250) { c.hb = true; c.rev = 0; }
-  } else if (PAD && PAD.active) { c.steer = PAD.x; c.thr = PAD.rt; c.rev = PAD.lt; c.hb = PAD.hb; if (PAD.rt > .5 && PAD.lt > .5) { c.burn = true; c.thr = 0; c.rev = 0; } }
-  else if (kU || kD || kL || kR || keys.Space) {
+  if (kU || kD || kL || kR || keys.Space) {   // klaviatūra (Steam) - visada pirmenybė (prijungtas pultelis jos neužgožia)
     c.steer = (kR ? 1 : 0) - (kL ? 1 : 0); c.thr = kU ? 1 : 0; c.rev = kD ? 1 : 0; c.hb = !!keys.Space;
     if (kU && kD) { c.burn = true; c.thr = 0; c.rev = 0; }   // burnout - saulutės vietoje
+  } else if (tb.gas || tb.brake || tb.left || tb.right) {   // lietimo mygtukai: stabdis su vairu greitai - driftas, stovint - atbulinė
+    c.steer = (tb.right ? 1 : 0) - (tb.left ? 1 : 0); c.thr = tb.gas ? 1 : 0; c.rev = tb.brake ? 1 : 0;
+    if (tb.gas && tb.brake) { c.burn = true; c.thr = 0; c.rev = 0; } else if (tb.brake && c.steer && u > 250) { c.hb = true; c.rev = 0; }
+  } else if (PAD && PAD.active) { c.steer = PAD.x; c.thr = PAD.rt; c.rev = PAD.lt; c.hb = PAD.hb; if (PAD.rt > .5 && PAD.lt > .5) { c.burn = true; c.thr = 0; c.rev = 0; }
   } else if (stick.on && Math.hypot(stick.dx, stick.dy) > .25) {
     const mag = Math.min(1, Math.hypot(stick.dx, stick.dy)), want = Math.atan2(stick.dy, stick.dx), df = angDiff(pl.a, want);
     if (pl.revMode) { if (Math.abs(df) < 1.4 || u > 80) pl.revMode = false; }
@@ -75,10 +76,11 @@ function stepPlayer(dt) {
   smashProps(pl, true);
   if (pl.empT > 0) pl.empT -= dt;
   /* padangų dūmai slystant, kibirkštys nuo sienų, nitro liepsna */
-  const bx = pl.x - fx * pl.L * .8, by = pl.y - fy * pl.L * .8;
-  if (slide && Math.random() < .8) for (const s of [1, -1]) puff(bx + rx * pl.W * s, by + ry * pl.W * s, rnd(-30, 30), rnd(-30, 30), .7, 3, '#E8EAEE');
+  const bx = pl.x - fx * pl.rear, by = pl.y - fy * pl.rear, wx = pl.x - fx * pl.rear * .6, wy = pl.y - fy * pl.rear * .6;
+  if (slide && Math.random() < .8) for (const s of [1, -1]) { puff(wx + rx * pl.W * s, wy + ry * pl.W * s, rnd(-30, 30), rnd(-30, 30), .7, 3, '#E8EAEE'); ps[ps.length - 1].u = 1; }   // padangų dūmai - po mašina
   if (WCV > 60) for (let i = 0; i < 3; i++) ps.push({ k: 'sq', x: WCX, y: WCY, vx: -WCNY * WCV * rnd(.3, 1) + WCNX * rnd(40, 120), vy: WCNX * WCV * rnd(.3, 1) + WCNY * rnd(40, 120), life: .2, max: .2, c: pick(['#FFF3B0', '#FFD23F', '#FF8A2A']), s: 1 });
-  if (pl.boost) for (let i = 0; i < 2; i++) ps.push({ k: 'sq', x: bx, y: by, vx: -fx * 300 + rnd(-60, 60), vy: -fy * 300 + rnd(-60, 60), life: .18, max: .18, c: pick(['#BFF3FF', '#5AB8FF', '#FFFFFF']), s: 2 });
+  if (pl.boost) for (let i = 0; i < 3; i++) { const s = rnd(-.35, .35) * pl.W, v = rnd(180, 320), l = rnd(.12, .22);   // nitro liepsna iš už galinio buferio, po mašina; paveldi greitį - nusidriekia atgal
+    ps.push({ k: 'nf', x: bx + rx * s, y: by + ry * s, vx: pl.vx * .8 - fx * v + rnd(-30, 30), vy: pl.vy * .8 - fy * v + rnd(-30, 30), life: l, max: l, u: 1 }); }
   pl.drift = slide ? 1 : 0;
   engine(sp, G.started);
   return sp;

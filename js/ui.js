@@ -17,7 +17,7 @@ function drawWorld(t) {
   for (const g of gems) { const [x, y] = P2(g.x, g.y); if (x < -10 || y < -10 || x > WW + 10 || y > WH + 10) continue;
     if (g.k === 'xp') spr(g.v >= 10 ? 'xp_2' : g.v >= 3 ? 'xp_1' : 'xp_0', x, y - (Math.floor(t * 3 + g.x) % 2));
     else spr(g.k === 'coin' ? 'cash_' + (Math.floor(t * 8 + g.y) % 4) : g.k === 'heal' ? 'pick_heal' : 'pick_magnet', x, y); }
-  drawCivs();
+  drawFx(true); drawCivs();   // po mašinomis: nitro liepsna, padangų dūmai
   for (const c of cops) if (c.ab === 'emp' && c.empW && !c.dead) { const [x, y] = P2(c.x, c.y), k = 1 - clamp(c.abT, 0, 1); ringPx(x, y, Math.round(450 * PPU * k), Math.floor(t * 12) % 2 ? '#6FE7FF' : '#FFFFFF'); }   // EMP įspėjimas
   /* mašinos: šešėlis, kėbulas, blyksnis; policijos švyturėliai */
   for (const c of cops) { if (c.boss === 'heli' || c.gone) continue; const [x, y] = P2(c.x, c.y); if (x < -40 || y < -40 || x > WW + 40 || y > WH + 40) continue;
@@ -39,16 +39,17 @@ function drawWorld(t) {
     if (p.k === 'rkt') { ctx.fillStyle = '#E8EAEE'; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); ctx.fillStyle = '#FF7A3A'; ctx.fillRect(Math.round(x - Math.cos(p.a) * 2), Math.round(y - Math.sin(p.a) * 2), 2, 2); }
     else { const [bx, by] = P2(p.x - p.vx * .02, p.y - p.vy * .02); linePx(bx, by, x, y, p.col, 1); ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(x), Math.round(y), 1, 1); } }
   for (const z of zaps) { const [x0, y0] = P2(z.x0, z.y0), [x1, y1] = P2(z.x1, z.y1); let px = x0, py = y0; for (let i = 1; i <= 5; i++) { const nx = lerp(x0, x1, i / 5) + (i < 5 ? rnd(-4, 4) : 0), ny = lerp(y0, y1, i / 5) + (i < 5 ? rnd(-4, 4) : 0); linePx(px, py, nx, ny, '#7FE8FF', 2); linePx(px, py, nx, ny, '#FFFFFF', 1); px = nx; py = ny; } }
-  drawFx(); drawProps(true);
+  drawFx(false); drawProps(true);
   for (const c of cops) { if (c.boss !== 'heli') continue; const [x, y] = P2(c.x, c.y);   // sraigtasparnis - virš medžių
     ctx.globalAlpha = .35; sprRot('heli_body_sh', x + 10, y + 14, c.a); ctx.globalAlpha = 1; sprRot('heli_body_' + (Math.floor(t * 6) % 2), x, y, c.a, c.dead ? 'd' : 0);
     if (c.flash > 0) { ctx.globalAlpha = .8; sprRot('heli_body_0', x, y, c.a, 'w'); ctx.globalAlpha = 1; }
     sprRot('heli_rotor_' + (Math.floor(t * 18) % 3), x, y, c.a); }
   for (const n of nums) { const [x, y] = P2(n.x, n.y); text(n.v, x, y, 1, n.v >= 50 ? COL.acc2 : '#fff', .5); }
 }
-function drawFx() {
-  for (const p of ps) { const [x, y] = P2(p.x, p.y), k = p.life / p.max;
+function drawFx(under) {
+  for (const p of ps) { if (!!p.u !== !!under) continue; const [x, y] = P2(p.x, p.y), k = p.life / p.max;
     if (p.k === 'puff') { const s = Math.round(p.r * (1 + (1 - k) * 1.6)); ctx.globalAlpha = k * .5; ctx.fillStyle = p.c1; ctx.fillRect(Math.floor(x) - (s >> 1), Math.floor(y) - (s >> 1), s, s); ctx.globalAlpha = 1; }   // Steam dūmai: kvadratėlis plečiasi ir blėsta
+    else if (p.k === 'nf') { const q = 1 - k, s = q < .25 ? 3 : q < .6 ? 2 : 1; ctx.fillStyle = q < .2 ? '#FFFFFF' : q < .45 ? '#BFF3FF' : q < .75 ? '#5AB8FF' : '#3D6BFF'; ctx.fillRect(Math.round(x) - (s >> 1), Math.round(y) - (s >> 1), s, s); }   // nitro: balta -> žydra -> mėlyna
     else if (p.k === 'sq') { ctx.fillStyle = p.c; ctx.fillRect(Math.round(x), Math.round(y), p.s, p.s); }
     else if (p.k === 'ring') { const q = 1 - k, e = 1 - k * k, r = Math.round(p.r * PPU * (.15 + .85 * e)); ctx.globalAlpha = 1 - q * q; ringPx(x, y, r, q < .3 ? '#FFF3B0' : '#FFB040'); if (q < .6) ringPx(x, y, r - 1, '#FF8A2A'); ctx.globalAlpha = 1; }
     else if (p.k === 'fire') { const q = 1 - k, s = Math.max(1, Math.round(p.s * (k + .4))); ctx.globalAlpha = Math.min(1, k * 1.6); ctx.fillStyle = q < .2 ? '#FFF3B0' : q < .45 ? '#FFD23F' : q < .7 ? '#FF8A2A' : '#8A8A90'; ctx.fillRect(Math.floor(x), Math.floor(y), s, s); ctx.globalAlpha = 1; }

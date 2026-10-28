@@ -105,9 +105,10 @@ let PAD = null, padStartPrev = false;
 function padRead() {
   const gps = navigator.getGamepads ? navigator.getGamepads() : [];
   for (const g of gps) { if (!g || !g.connected) continue;
-    const b = i => g.buttons[i] ? (g.buttons[i].value || (g.buttons[i].pressed ? 1 : 0)) : 0; let x = g.axes[0] || 0; if (Math.abs(x) < .15) x = 0; if (!x) x = b(15) - b(14);
+    const b = i => g.buttons[i] ? (g.buttons[i].value || (g.buttons[i].pressed ? 1 : 0)) : 0; let x = g.axes[0] || 0; if (Math.abs(x) < .3) x = 0;   // didesnė negyvoji zona: drebanti lazdelė neperima valdymo
+    if (!x) x = b(15) - b(14);
     const p = { x, rt: b(7), lt: b(6), hb: b(0) > .5 || b(4) > .5, nitro: b(5) > .5 || b(2) > .5, start: b(9) > .5 };
-    p.active = !!(p.x || p.rt > .05 || p.lt > .05 || p.hb || p.nitro); return p; }
+    p.active = !!(p.x || p.rt > .15 || p.lt > .15 || p.hb || p.nitro); if (p.active || p.start) return p; }
   return null;
 }
 let BTN = [], BTN_NEXT = [], lastInput = 0, anyInput = false;
@@ -117,7 +118,7 @@ function button(x, y, w, h, fn) { BTN_NEXT.push({ x: x + UIX, y: y + UIY, w, h, 
 function hitBtn(px, py) { for (let i = BTN.length - 1; i >= 0; i--) { const b = BTN[i]; if (px >= b.x && py >= b.y && px < b.x + b.w && py < b.y + b.h) return b; } return null; }
 let hover = null;
 cv.addEventListener('pointerdown', e => {
-  e.preventDefault(); audioInit(); anyInput = true; lastInput = performance.now();
+  e.preventDefault(); try { window.focus(); } catch (_) { } audioInit(); anyInput = true; lastInput = performance.now();   // preventDefault neleidžia fokuso - Poki rėmelyje klavišai liktų tėviniam puslapiui
   const [px, py] = toLo(e), b = hitBtn(px, py);
   if (b) { b.fn(); sfx('click'); return; }
   if (e.pointerType === 'touch') { touchUI = true; const k = tbHit(px, py); if (k) { tbPtr.set(e.pointerId, k); tbSync(); try { cv.setPointerCapture(e.pointerId); } catch (_) { } return; } }
