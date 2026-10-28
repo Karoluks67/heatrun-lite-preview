@@ -123,6 +123,7 @@ cv.addEventListener('pointerdown', e => {
   if (b) { b.fn(); sfx('click'); return; }
   if (e.pointerType === 'touch') { touchUI = true; const k = tbHit(px, py); if (k) { tbPtr.set(e.pointerId, k); tbSync(); try { cv.setPointerCapture(e.pointerId); } catch (_) { } return; } }
   if (onNitroBtn(px, py)) { nitroBtn.on = true; nitroBtn.id = e.pointerId; return; }
+  if (e.pointerType === 'mouse' || e.pointerType === 'touch') return;   // pele nevairuojama (kaip Steam), telefone - mygtukai; spustelėjimas tik suteikia fokusą
   if (!stick.on) { stick.on = true; stick.id = e.pointerId; stick.ox = px; stick.oy = py; stick.x = px; stick.y = py; stick.dx = 0; stick.dy = 0; }
   try { cv.setPointerCapture(e.pointerId); } catch (_) { }
 });

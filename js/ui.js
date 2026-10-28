@@ -195,7 +195,9 @@ function drawCards(t) {
 function pauseGame() { if (state !== 'play' || !G.started) return; state = 'pause'; Poki.stop(); engine(0, false); }
 function resumeGame() { state = 'play'; Poki.start(); }
 function onBlur() { if (state === 'play' && G && G.started && !G.cards) pauseGame(); }
+const DRIVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'ShiftLeft', 'ShiftRight', 'KeyN'];
 function onKey(k) {
+  if (state === 'ready' && G && DRIVE_KEYS.includes(k)) { G.started = true; state = 'play'; Poki.start(); return; }   // net trumpas paspaudimas paleidžia runą
   if (state === 'play' && (k === 'Escape' || k === 'KeyP')) { if (G.cards) return; pauseGame(); return; }
   if (state === 'pause' && (k === 'Escape' || k === 'KeyP')) { resumeGame(); return; }
   if (state === 'play' && G.cards && ['Digit1', 'Digit2', 'Digit3'].includes(k)) { takeCard(G.cards[+k[5] - 1]); return; }

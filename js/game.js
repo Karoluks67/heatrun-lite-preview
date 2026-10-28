@@ -85,7 +85,7 @@ function stepPlayer(dt) {
   engine(sp, G.started);
   return sp;
 }
-function crash(dv) { shake = Math.max(shake, Math.min(.35, dv / 900)); sfx('crash'); }
+function crash(dv) { if (dv > 120) shake = Math.max(shake, Math.min(.18, dv / 1500)); sfx(dv > 200 ? 'crash' : 'hit'); }   // mažiau drebėjimo nuo sienų
 
 /* ---------- Policija: kėbulai su Steam fizika, smegenys - js/police.js ---------- */
 function spawnCop(type, boss) {
@@ -144,7 +144,7 @@ function carHit(a, b, dva, dvb) {
   if (a !== pl && b === pl) { carHit(b, a, dvb, dva); return; }
   if (a === pl) {
     if (b.isCop) {
-      const rel = Math.max(dva, dvb); if (rel > 40) { sfx('crash'); shake = Math.max(shake, Math.min(.3, rel / 900)); }
+      const rel = Math.max(dva, dvb); if (rel > 40) { sfx('crash'); if (rel > 120) shake = Math.max(shake, Math.min(.18, rel / 1400)); }
       const cd = (impactDmg(28, dvb) + (rel > 8 ? 4 : 0)) * (pl.boost ? 2 : 1) * dmgMul();
       if (dvb > VP.TAKEDOWN && !b.boss) hurtCop(b, b.hp + 1); else if (cd > 0) hurtCop(b, cd);   // tvirtas taranas - išjungta iš karto
       if (pl.inv <= 0 && b.dmg > 0) { const pd = Math.max(impactDmg(b.dmg, dva), rel > 8 ? b.dmg * .6 : 0); if (pd > 0) hurtPlayer(pd * (1 + heatIdx() * .15)); }
@@ -305,7 +305,7 @@ function blast(x, y, R) {
   ps.push({ k: 'ring', x, y, life: .35, max: .35, r: R }, { k: 'flash', x, y, life: .16, max: .16, r: R > 100 ? 9 : 6 });
   for (let i = 0; i < (R > 100 ? 40 : 18); i++) { const a = Math.random() * TAU, v = 40 + Math.random() * R * 2.4, l = .45 + Math.random() * .35; ps.push({ k: 'fire', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: l, max: l, s: R > 100 ? 4 : 3 }); }
   scorch.push({ x, y, r: R * .55, t: 9, seed: Math.random() * 1e4 | 0 }); if (scorch.length > 40) scorch.shift();
-  civBlast(x, y, R, R > 100 ? 60 : 35);   // grandinės: sprogimas žaloja ir stumia civilines mašinas
+  civBlast(x, y, R);   // sprogimas tik pastumia pastatytas mašinas (be grandinių)
   sfx(R > 100 ? 'boom' : 'small'); if (R > 60) shake = Math.max(shake, R > 100 ? .4 : .12);
 }
 function boom(x, y, s) { blast(x, y, 45 * s); for (let i = 0; i < 3 * s; i++) puff(x + rnd(-20, 20), y + rnd(-20, 20), rnd(-30, 30), rnd(-50, -20), rnd(1, 1.8), 3, '#5A5E68'); }

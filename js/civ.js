@@ -17,11 +17,14 @@ function civMake(x, y, a, m, c, mode) {
   return bodyInit(o, { m: TRF_M[m], len: TRF_LEN[m], wid: TRF_WID[m], top: TRF_V[m] });
 }
 /* Pastatytą mašiną (statinis žemėlapio įrašas) paverčia judančiu kūnu, kai ją kas nors paliečia */
-function parkWake(x, y, r) {
-  const cx = Math.floor(x * PPU / CH), cy = Math.floor(y * PPU / CH);
+function parkWake(b) {   // tik ta pastatyta mašina, kurią kūnas tikrai liečia (kapsulė prie kapsulės), ne visa eilė
+  const cx = Math.floor(b.x * PPU / CH), cy = Math.floor(b.y * PPU / CH), [a1x, a1y] = capC(b, 0), [c1x, c1y] = capC(b, 1);
   for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++) {
     const L = A.map.park[i + '_' + j]; if (!L) continue;
-    for (const p of L) { if (parkUsed.has(p)) continue; const R = r + TRF_R[p[3]]; if ((p[0] - x) ** 2 + (p[1] - y) ** 2 < R * R) { parkUsed.add(p); civs.push(civMake(p[0], p[1], p[2], p[3], p[4], 'loose')); } }
+    for (const p of L) { if (parkUsed.has(p)) continue; const m = p[3]; if (Math.abs(p[0] - b.x) > 120 || Math.abs(p[1] - b.y) > 120) continue;
+      const h = (TRF_LEN[m] - TRF_WID[m]) / 2, ca = Math.cos(p[2]), sa = Math.sin(p[2]);
+      segClosest(a1x, a1y, c1x, c1y, p[0] + ca * h, p[1] + sa * h, p[0] - ca * h, p[1] - sa * h);
+      if (Math.hypot(SC1X - SC2X, SC1Y - SC2Y) < (b.wid + TRF_WID[m]) / 2 + 3) { parkUsed.add(p); const c = civMake(p[0], p[1], p[2], m, p[4], 'loose'); c.m *= 3; c.parked = true; civs.push(c); } }   // sunkios - tik pasislenka
   }
 }
 /* Eismo mašinos gimimas: kelio taškas už ekrano, kryptis - ilgesnė kelio ašis, važiuoja dešine puse */
@@ -70,8 +73,8 @@ function stepDrive(c, dt) {
 function stepCivs(dt) {
   if (!G.started) return;
   if ((civT -= dt) <= 0) { civT = .5; if (civs.filter(c => c.mode === 'drive').length < TRAFFIC_N) trafSpawn(); }
-  parkWake(pl.x + pl.vx * dt, pl.y + pl.vy * dt, 24);
-  for (let i = 0; i < cops.length; i++) { const o = cops[i]; if (!o.dead && o.boss !== 'heli' && (i + Math.floor(G.t * 60)) % 3 === 0) parkWake(o.x, o.y, o.r); }
+  parkWake(pl);
+  for (let i = 0; i < cops.length; i++) { const o = cops[i]; if (!o.dead && o.boss !== 'heli' && o.len && (i + Math.floor(G.t * 60)) % 3 === 0) parkWake(o); }
   const vr = Math.hypot(WW, WH) / 2 / PPU;
   for (const c of civs) {
     if (c.mode === 'drive') stepDrive(c, dt);
@@ -81,9 +84,9 @@ function stepCivs(dt) {
   civs = civs.filter(c => !c.gone && Math.hypot(c.x - pl.x, c.y - pl.y) < (c.mode === 'drive' ? vr * 2.3 : 2600));
 }
 /* Smūgis į civilinę mašiną (iš js/game.js carHit): nustumta nebevažiuoja; stiprus - žala, kol susprogsta */
-function civHit(c, dv) {
+function civHit(c, dv) {   // civilinės mašinos nesprogsta (vartotojas: atsitiktiniai sprogimai ir drebėjimas atrodė blogai) - tik pasislenka
   if (dv > 15) c.mode = 'loose';
-  if (dv > 60) { c.hp -= (dv - 40) * .12 * (pl.boost ? 2 : 1); if (dv > 120) sfx('crash'); }
+  if (dv > 160) sfx('hit');
 }
 /* Civilinės mašinos sprogimas: kaip policijos (Steam KillCop vaizdas), monetos kartais; sužeidžia aplink esančią policiją */
 function civBoom(c) {
@@ -92,10 +95,9 @@ function civBoom(c) {
   if (Math.random() < .4) gems.push({ k: 'coin', x: c.x, y: c.y, v: 1 });
 }
 /* Sprogimų banga stumia ir žaloja mašinas (grandinės), pažadina pastatytas */
-function civBlast(x, y, R, dmg) {
-  parkWake(x, y, R);
+function civBlast(x, y, R) {   // sprogimas tik lengvai pastumia jau judančias mašinas - be žalos ir be grandinių
   for (const c of civs) { if (c.gone) continue; const dx = c.x - x, dy = c.y - y, d = Math.hypot(dx, dy) || 1; if (d > R + c.r) continue;
-    c.hp -= dmg; c.mode = 'loose'; c.vx += dx / d * 260 / c.m; c.vy += dy / d * 260 / c.m; c.w += (Math.random() - .5) * 6; c.spinT = .6; }
+    c.vx += dx / d * 80 / c.m; c.vy += dy / d * 80 / c.m; }
 }
 function drawCivs() {
   /* pastatytos (statinės) */
